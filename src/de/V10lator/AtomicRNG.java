@@ -101,7 +101,7 @@ public class AtomicRNG {
     }
     
     public static void main(String[] args) {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(AtomicRNG.class.getResourceAsStream("/META-INF/maven/"+AtomicRNG.class.getPackage().getName().replace('.', '/')+"/pom.properties")));
+        BufferedReader reader = new BufferedReader(new InputStreamReader(AtomicRNG.class.getResourceAsStream("/META-INF/maven/"+AtomicRNG.class.getPackage().getName()+"/AtomicRNG/pom.properties")));
         String line;
         try {
             while((line = reader.readLine()) != null)
