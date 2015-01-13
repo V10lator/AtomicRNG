@@ -13,7 +13,7 @@ import java.security.NoSuchAlgorithmException;
 import org.bytedeco.javacv.CanvasFrame;
 import org.bytedeco.javacv.FFmpegFrameRecorder;
 import org.bytedeco.javacv.OpenCVFrameGrabber;
-import org.bytedeco.javacpp.avutil;
+//import org.bytedeco.javacpp.avutil;
 import org.bytedeco.javacpp.opencv_core.IplImage;
 
 public class AtomicRNG {
@@ -85,7 +85,7 @@ public class AtomicRNG {
     }
     
     public static void main(String[] args) {
-        org.bytedeco.javacpp.Loader.load(org.bytedeco.javacpp.avcodec.class); // Workaround for java.lang.NoClassDefFoundError: Could not initialize class org.bytedeco.javacpp.avcodec
+        //org.bytedeco.javacpp.Loader.load(org.bytedeco.javacpp.avcodec.class); // Workaround for java.lang.NoClassDefFoundError: Could not initialize class org.bytedeco.javacpp.avcodec
         System.out.print("AtomicRNG v"+version+System.lineSeparator()+
                 "(c) 2015 by Thomas \"V10lator\" Rohloff."+System.lineSeparator()+
                 System.lineSeparator()+
@@ -178,7 +178,7 @@ public class AtomicRNG {
                         videoOut = new FFmpegFrameRecorder("~/Private/AtomicRNG-LiveView.mp4",  statWidth, height);
                         videoOut.setVideoCodec(13);
                         videoOut.setFormat("mp4");
-                        videoOut.setPixelFormat(avutil.AV_PIX_FMT_YUV420P);
+                        videoOut.setPixelFormat(/*avutil.AV_PIX_FMT_YUV420P*/ 0); // Workaround for java.lang.NoClassDefFoundError: Could not initialize class org.bytedeco.javacpp.avcodec
                         videoOut.setFrameRate(9);
                         videoOut.setVideoBitrate(10 * 1024 * 1024);
                         videoOut.start();
