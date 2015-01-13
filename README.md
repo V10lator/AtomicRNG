@@ -1,4 +1,6 @@
 # AtomicRNG
+[![Build Status](http://ci.eyrenetwork.net/job/AtomicRNG/badge/icon)](http://ci.eyrenetwork.net/job/AtomicRNG/)
+
 An experimental RNG feeding the Linux RNG with the help of an Alpha-Ray-Visualizer[¹].
 
 This tool is useless without an Alpha-Ray-Visualizer, so build one first.
@@ -31,9 +33,6 @@ Next steps:<br>
  - Work with the raw OpenCV data instead of wrapping it to a BufferedImage.<br>
  - Port to C.<br>
  - Port to kernel-space.<br>
-
-
-<img src="http://ci.eyrenetwork.net/job/AtomicRNG/badge/icon">
 
 
 [¹] http://www.inventgeek.com/alpha-radiation-visualizer/<br>
