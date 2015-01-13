@@ -18,9 +18,11 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.image.BufferedImage;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
@@ -35,7 +37,7 @@ public class AtomicRNG {
     private static MessageDigest md = null;
     private static OpenCVFrameGrabber atomicRNGDevice;
     private static FileWriter osRNG = null;
-    private static final double version = 0.9d;
+    private static String version;
     private static final float brightnessFilter = 0.2f;
     private static int numCount = 0;
 //    private static FFmpegFrameRecorder videoOut = null;
@@ -99,6 +101,20 @@ public class AtomicRNG {
     }
     
     public static void main(String[] args) {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(AtomicRNG.class.getResourceAsStream("/META-INF/maven/"+AtomicRNG.class.getPackage().getName().replace('.', '/')+"/pom.properties")));
+        String line;
+        try {
+            while((line = reader.readLine()) != null)
+                if(line.substring(0, 8).equals("version=")) {
+                    version = line.substring(8);
+                    break;
+                }
+            reader.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        }
+        
         //org.bytedeco.javacpp.Loader.load(org.bytedeco.javacpp.avcodec.class); // Workaround for java.lang.NoClassDefFoundError: Could not initialize class org.bytedeco.javacpp.avcodec
         System.out.println("AtomicRNG v"+version+System.lineSeparator()+
                 "(c) 2015 by Thomas \"V10lator\" Rohloff."+System.lineSeparator());
