@@ -122,7 +122,7 @@ public class AtomicRNG {
                 case "-h":
                     System.out.println("Arguments:"+System.lineSeparator()+
                             " -q  : Be quiet."+System.lineSeparator()+
-                            " -ef : Enable experimental filter"+System.lineSeparator()+
+//                            " -ef : Enable experimental filter"+System.lineSeparator()+
                             " -h  : Show this help."+System.lineSeparator());
                     return;
                 default:
