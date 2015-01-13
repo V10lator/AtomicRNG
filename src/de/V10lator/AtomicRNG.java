@@ -35,7 +35,7 @@ public class AtomicRNG {
     private static MessageDigest md = null;
     private static OpenCVFrameGrabber atomicRNGDevice;
     private static FileWriter osRNG = null;
-    private static final double version = 0.8d;
+    private static final double version = 0.9d;
     private static final float brightnessFilter = 0.2f;
     private static int numCount = 0;
 //    private static FFmpegFrameRecorder videoOut = null;
