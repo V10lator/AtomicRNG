@@ -38,7 +38,7 @@ public class AtomicRNG {
     private static OpenCVFrameGrabber atomicRNGDevice;
     private static FileWriter osRNG = null;
     private static String version;
-    private static final int filter = 12;
+    private static final int filter = 16;
 //    private static FFmpegFrameRecorder videoOut = null;
     
     private static void toOSrng(int number) {
