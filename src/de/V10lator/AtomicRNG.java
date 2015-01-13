@@ -103,19 +103,24 @@ public class AtomicRNG {
         System.out.println("AtomicRNG v"+version+System.lineSeparator()+
                 "(c) 2015 by Thomas \"V10lator\" Rohloff."+System.lineSeparator());
         
-        boolean quiet = false;
+        boolean quiet = false, experimentalFilter = false;
         for(String arg: args) {
             switch(arg) {
                 case("-q"):
                     quiet = true;
                     break;
+                case("-ef"):
+                    experimentalFilter = true;
+                    break;
                 case "-h":
                     System.out.println("Arguments:"+System.lineSeparator()+
-                            " -q : Be quiet."+System.lineSeparator()+
-                            " -h : Show this help."+System.lineSeparator());
+                            " -q  : Be quiet."+System.lineSeparator()+
+                            " -ef : Enable experimental filter"+System.lineSeparator()+
+                            " -h  : Show this help."+System.lineSeparator());
                     break;
                 default:
                     System.out.println("Unknown argument: "+arg+System.lineSeparator()+System.lineSeparator());
+                    return;
             }
         }
         
@@ -224,7 +229,7 @@ public class AtomicRNG {
                     BufferedImage bImg = img.getBufferedImage();
                     int rgb, red, green, blue;
                     float b;
-                    String sb;
+                    String sb = null;
                     Color color;
                     boolean impact = false;
                     for(int y = 0; y < height; y++) {
@@ -236,27 +241,36 @@ public class AtomicRNG {
                             red = color.getRed();
                             green = color.getGreen();
                             blue = color.getBlue();
-                            b = Color.RGBtoHSB(red, green, blue, new float[3])[2];
-                            if(b < brightnessFilter) {
-                                if(!quiet)
-                                    statImg.setRGB(statXoffset + x, y, black);
-                                continue;
+                            if(!experimentalFilter) {
+                                b = Color.RGBtoHSB(red, green, blue, new float[3])[2];
+                                if(b < brightnessFilter) {
+                                    if(!quiet)
+                                        statImg.setRGB(statXoffset + x, y, black);
+                                    continue;
+                                }
+                                b -= brightnessFilter;
+                                sb = String.valueOf(b);
+                                sb = sb.substring(sb.indexOf(".")+1);
+                            } else {
+                                if(!(red > 128 || green > 128 || blue > 128)) {
+                                    if(!quiet)
+                                        statImg.setRGB(statXoffset + x, y, black);
+                                    continue;
+                                }
                             }
                             if(!quiet) {
                                 statImg.setRGB(statXoffset + x, y, rgb);
                                 hashCount += 6;
                             }
                             impact = true;
-                            b -= brightnessFilter;
-                            sb = String.valueOf(b);
-                            sb = sb.substring(sb.indexOf(".")+1);
                      //       System.out.println("Impact! X/Y: "+x+"/"+y+" | R/G/B: "+red+"/"+green+"/"+blue+" | brightness: "+b+" ("+sb+")");
                             toOSrng(red, true);
                             toOSrng(green, true);
                             toOSrng(blue, true);
                             toOSrng(x, true);
                             toOSrng(y, true);
-                            toOSrng(Integer.parseInt(sb), false);
+                            if(!experimentalFilter)
+                                toOSrng(Integer.parseInt(sb), false);
                         }
                     }
                     if(impact) {
