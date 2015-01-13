@@ -1,0 +1,8 @@
+Changelog:
+
+0.9:
+	- Initial release.
+
+0.10:
+	- Add maven versions magic.
+	- Tune the experimental filter and make it default.
