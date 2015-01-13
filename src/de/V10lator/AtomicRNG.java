@@ -111,13 +111,14 @@ public class AtomicRNG {
                     break;
                 case("-ef"):
                     experimentalFilter = true;
+                    System.out.println("WARNING: Experimental noise filter activated!"+System.lineSeparator());
                     break;
                 case "-h":
                     System.out.println("Arguments:"+System.lineSeparator()+
                             " -q  : Be quiet."+System.lineSeparator()+
                             " -ef : Enable experimental filter"+System.lineSeparator()+
                             " -h  : Show this help."+System.lineSeparator());
-                    break;
+                    return;
                 default:
                     System.out.println("Unknown argument: "+arg+System.lineSeparator()+System.lineSeparator());
                     return;
@@ -252,7 +253,7 @@ public class AtomicRNG {
                                 sb = String.valueOf(b);
                                 sb = sb.substring(sb.indexOf(".")+1);
                             } else {
-                                if(!(red > 128 || green > 128 || blue > 128)) {
+                                if(!(red > 64 || green > 64 || blue > 64)) {
                                     if(!quiet)
                                         statImg.setRGB(statXoffset + x, y, black);
                                     continue;
