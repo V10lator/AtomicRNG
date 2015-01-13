@@ -8,8 +8,8 @@ java -jar /path/to/AtomicRNG-*-SNAPSHOT.jar
 ```
 
 After your Alpha-Ray-Visualizer has been initialized (which simply means loading
-the webcam and giving it some time for white balance) a Window will open.
-On the left side of the Window you'll see the raw webcam image (with dark noise
+the webcam and giving it some time for white balance) a window will open.
+On the left side of the window you'll see the raw webcam image (with dark noise
 as well as noise introduced by EMI if your shielding isn't good enough).
 On the right side you'll see the filtered image: All pixels not used to get
 randomness are blacked out. All you see on that image is the impact of ions
@@ -27,11 +27,19 @@ Some of the numbers are hashed 2 times to get even more numbers.
 
 
 Next steps:
+	
 	- Otimize this even more.
+	
 	- Work with the raw OpenCV data instead of wrapping it to a BufferedImage.
+	
 	- Port to C++.
+	
 	- Port to C.
+	
 	- Port to kernel-space.
+
+
+	[![Build Status](http://ci.eyrenetwork.net/job/AtomicRNG/badge/icon)](http://ci.eyrenetwork.net/job/AtomicRNG/)
 
 
 [¹] http://www.inventgeek.com/alpha-radiation-visualizer/
