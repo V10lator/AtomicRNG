@@ -169,7 +169,7 @@ public class AtomicRNG {
             long start = System.currentTimeMillis();
             try {
                 if(start - lastSlice >= 10000L) {
-                    canvasFrame.setTitle(title.replaceAll("X\\.X", String.valueOf((float)fpsCount/10.0f)).replaceAll("Y\\.Y", String.valueOf((float)((hashCount*40)+numCount)/10.0f).replaceAll("Z\\.Z", String.valueOf((float)hashCount/10.0f))));
+                    canvasFrame.setTitle(title.replaceAll("X\\.X", String.valueOf((float)fpsCount/10.0f)).replaceAll("Y\\.Y", String.valueOf((float)((hashCount*40)+numCount)/10.0f)).replaceAll("Z\\.Z", String.valueOf((float)hashCount/10.0f)));
                     hashCount = fpsCount = numCount = 0;
                     lastSlice = start;
                     osRNG.flush();
