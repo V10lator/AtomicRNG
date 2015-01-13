@@ -11,7 +11,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 import org.bytedeco.javacv.CanvasFrame;
-import org.bytedeco.javacv.FFmpegFrameRecorder;
+//import org.bytedeco.javacv.FFmpegFrameRecorder;
 import org.bytedeco.javacv.OpenCVFrameGrabber;
 //import org.bytedeco.javacpp.avutil;
 import org.bytedeco.javacpp.opencv_core.IplImage;
@@ -24,7 +24,7 @@ public class AtomicRNG {
     private static final double version = 0.8d;
     private static final float brightnessFilter = 0.2f;
     private static int numCount = 0;
-    private static FFmpegFrameRecorder videoOut = null;
+//    private static FFmpegFrameRecorder videoOut = null;
     
     private static void toOSrng(int number, boolean hash) {
         if(hash) {
@@ -72,14 +72,14 @@ public class AtomicRNG {
                     e.printStackTrace();
                 }
             }
-            if(videoOut != null) {
+/*            if(videoOut != null) {
                 try {
                     videoOut.stop();
                     videoOut.release();
                 } catch (org.bytedeco.javacv.FrameRecorder.Exception e) {
                     e.printStackTrace();
                 }
-            }
+            }*/
             System.out.println("done!");
         }
     }
@@ -175,13 +175,13 @@ public class AtomicRNG {
                             for(int y = 0; y < height; y++)
                                 statImg.setRGB(x, y, Color.RED.getRGB());
                         canvasFrame.setCanvasSize(statWidth, height);
-                        videoOut = new FFmpegFrameRecorder("~/Private/AtomicRNG-LiveView.mp4",  statWidth, height);
+/*                        videoOut = new FFmpegFrameRecorder("~/Private/AtomicRNG-LiveView.mp4",  statWidth, height);
                         videoOut.setVideoCodec(13);
                         videoOut.setFormat("mp4");
-                        videoOut.setPixelFormat(/*avutil.AV_PIX_FMT_YUV420P*/ 0); // Workaround for java.lang.NoClassDefFoundError: Could not initialize class org.bytedeco.javacpp.avcodec
+                        videoOut.setPixelFormat(0); // Workaround for java.lang.NoClassDefFoundError: Could not initialize class org.bytedeco.javacpp.avcodec
                         videoOut.setFrameRate(9);
                         videoOut.setVideoBitrate(10 * 1024 * 1024);
-                        videoOut.start();
+                        videoOut.start();*/
                     }
                     BufferedImage bImg = img.getBufferedImage();
                     int rgb, red, green, blue;
@@ -229,7 +229,7 @@ public class AtomicRNG {
                     graphics.drawString("Filtered", statXoffset + (width / 2 - 50), 25);
                     
                     canvasFrame.showImage(statImg);
-                    videoOut.record(IplImage.createFrom(statImg));
+//                    videoOut.record(IplImage.createFrom(statImg));
                     
                     img.release();
                 }
