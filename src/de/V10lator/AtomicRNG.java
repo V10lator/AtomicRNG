@@ -38,30 +38,20 @@ public class AtomicRNG {
     private static OpenCVFrameGrabber atomicRNGDevice;
     private static FileWriter osRNG = null;
     private static String version;
-    private static final float brightnessFilter = 0.2f;
-    private static int numCount = 0;
+    private static final int filter = 8;
 //    private static FFmpegFrameRecorder videoOut = null;
     
-    private static void toOSrng(int number, boolean hash) {
-        if(hash) {
-            byte[] hashStream = md.digest(Integer.toHexString(number).getBytes());
-            md.reset();
-            hashStream = md.digest(hashStream);
-            md.reset();
-            for (int i=0;i<hashStream.length;i++)
-                try {
-                    osRNG.write(Integer.toHexString(0xFF & hashStream[i]));
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-        } else {
-            numCount += String.valueOf(number).length();
+    private static void toOSrng(int number) {
+        byte[] hashStream = md.digest(Integer.toHexString(number).getBytes());
+        md.reset();
+        hashStream = md.digest(hashStream);
+        md.reset();
+        for (int i=0;i<hashStream.length;i++)
             try {
-                osRNG.write(String.valueOf(number));
+                osRNG.write(Integer.toHexString(0xFF & hashStream[i]));
             } catch (IOException e) {
                 e.printStackTrace();
             }
-        }
     }
     
     private static boolean restartAtomicRNGDevice() {
@@ -119,16 +109,16 @@ public class AtomicRNG {
         System.out.println("AtomicRNG v"+version+System.lineSeparator()+
                 "(c) 2015 by Thomas \"V10lator\" Rohloff."+System.lineSeparator());
         
-        boolean quiet = false, experimentalFilter = false;
+        boolean quiet = false;//, experimentalFilter = false;
         for(String arg: args) {
             switch(arg) {
                 case("-q"):
                     quiet = true;
                     break;
-                case("-ef"):
+/*                case("-ef"):
                     experimentalFilter = true;
                     System.out.println("WARNING: Experimental noise filter activated!"+System.lineSeparator());
-                    break;
+                    break;*/
                 case "-h":
                     System.out.println("Arguments:"+System.lineSeparator()+
                             " -q  : Be quiet."+System.lineSeparator()+
@@ -212,8 +202,8 @@ public class AtomicRNG {
             try {
                 if(start - lastSlice >= 10000L) {
                     if(!quiet) {
-                        canvasFrame.setTitle(title.replaceAll("X\\.X", String.valueOf((float)fpsCount/10.0f)).replaceAll("Y\\.Y", String.valueOf((float)((hashCount*40)+numCount)/10.0f)).replaceAll("Z\\.Z", String.valueOf((float)hashCount/10.0f)));
-                        hashCount = fpsCount = numCount = 0;
+                        canvasFrame.setTitle(title.replaceAll("X\\.X", String.valueOf((float)fpsCount/10.0f)).replaceAll("Y\\.Y", String.valueOf((float)hashCount*4.0f)).replaceAll("Z\\.Z", String.valueOf((float)hashCount/10.0f)));
+                        hashCount = fpsCount;
                     }
                     lastSlice = start;
                     osRNG.flush();
@@ -245,8 +235,6 @@ public class AtomicRNG {
                     }
                     BufferedImage bImg = img.getBufferedImage();
                     int rgb, red, green, blue;
-                    float b;
-                    String sb = null;
                     Color color;
                     boolean impact = false;
                     for(int y = 0; y < height; y++) {
@@ -258,22 +246,10 @@ public class AtomicRNG {
                             red = color.getRed();
                             green = color.getGreen();
                             blue = color.getBlue();
-                            if(!experimentalFilter) {
-                                b = Color.RGBtoHSB(red, green, blue, new float[3])[2];
-                                if(b < brightnessFilter) {
-                                    if(!quiet)
-                                        statImg.setRGB(statXoffset + x, y, black);
-                                    continue;
-                                }
-                                b -= brightnessFilter;
-                                sb = String.valueOf(b);
-                                sb = sb.substring(sb.indexOf(".")+1);
-                            } else {
-                                if(!(red > 16 || green > 16 || blue > 16)) {
-                                    if(!quiet)
-                                        statImg.setRGB(statXoffset + x, y, black);
-                                    continue;
-                                }
+                            if(!(red > filter || green > filter || blue > filter)) {
+                                if(!quiet)
+                                    statImg.setRGB(statXoffset + x, y, black);
+                                continue;
                             }
                             if(!quiet) {
                                 statImg.setRGB(statXoffset + x, y, rgb);
@@ -281,17 +257,15 @@ public class AtomicRNG {
                             }
                             impact = true;
                      //       System.out.println("Impact! X/Y: "+x+"/"+y+" | R/G/B: "+red+"/"+green+"/"+blue+" | brightness: "+b+" ("+sb+")");
-                            toOSrng(red, true);
-                            toOSrng(green, true);
-                            toOSrng(blue, true);
-                            toOSrng(x, true);
-                            toOSrng(y, true);
-                            if(!experimentalFilter)
-                                toOSrng(Integer.parseInt(sb), false);
+                            toOSrng(red);
+                            toOSrng(x);
+                            toOSrng(green);
+                            toOSrng(y);
+                            toOSrng(blue);
                         }
                     }
                     if(impact) {
-                        toOSrng((int)(start - lastFound), false);
+                        toOSrng((int)(start - lastFound));
                         lastFound = start;
                         if(!quiet)
                             hashCount++;
