@@ -18,7 +18,7 @@ hs_err_pid*
 # Operating System Files
 # =========================
 
-# OSX
+# OSX/Linux
 # =========================
 
 .DS_Store
@@ -31,6 +31,7 @@ hs_err_pid*
 # Files that might appear on external disk
 .Spotlight-V100
 .Trashes
+.Trash-*
 
 # Directories potentially created on remote AFP share
 .AppleDB
@@ -60,5 +61,10 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+# Maven
 /target/
 /bin/
+
+# Tmp/Backup files
+*~
