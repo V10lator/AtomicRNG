@@ -85,6 +85,7 @@ public class AtomicRNG {
     }
     
     public static void main(String[] args) {
+        org.bytedeco.javacpp.Loader.load(org.bytedeco.javacpp.avcodec.class); // Workaround for java.lang.NoClassDefFoundError: Could not initialize class org.bytedeco.javacpp.avcodec
         System.out.print("AtomicRNG v"+version+System.lineSeparator()+
                 "(c) 2015 by Thomas \"V10lator\" Rohloff."+System.lineSeparator()+
                 System.lineSeparator()+
