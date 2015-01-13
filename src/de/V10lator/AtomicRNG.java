@@ -152,7 +152,8 @@ public class AtomicRNG {
             return;
         }
         
-        CanvasFrame canvasFrame = new CanvasFrame("AtomicRNG LiveView");
+        String title = "AtomicRNG v"+version+" LiveView | FPS: X.X | Numbers/sec: Y.Y (Z.Z hashes/sec)";
+        CanvasFrame canvasFrame = new CanvasFrame(title);
         canvasFrame.setDefaultCloseOperation(CanvasFrame.EXIT_ON_CLOSE);
         
         System.out.println("done!");
@@ -168,9 +169,7 @@ public class AtomicRNG {
             long start = System.currentTimeMillis();
             try {
                 if(start - lastSlice >= 10000L) {
-                    String stat = "FPS: "+((float)fpsCount/10.0f)+" | Numbers/sec: "+((float)((hashCount*40)+numCount)/10.0f)+" ("+((float)hashCount/10.0f)+" hashes/sec)";
-                    canvasFrame.setTitle("AtomicRNG LiveView | "+stat);
-                    //System.out.println("FPS: "+fpsCount+" | Numbers/sec: "+((hashCount*40)+numCount)+" ("+hashCount+" hashes/sec)");
+                    canvasFrame.setTitle(title.replaceAll("X\\.X", String.valueOf((float)fpsCount/10.0f)).replaceAll("Y\\.Y", String.valueOf((float)((hashCount*40)+numCount)/10.0f).replaceAll("Z\\.Z", String.valueOf((float)hashCount/10.0f))));
                     hashCount = fpsCount = numCount = 0;
                     lastSlice = start;
                     osRNG.flush();
