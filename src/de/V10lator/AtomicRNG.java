@@ -100,10 +100,26 @@ public class AtomicRNG {
     
     public static void main(String[] args) {
         //org.bytedeco.javacpp.Loader.load(org.bytedeco.javacpp.avcodec.class); // Workaround for java.lang.NoClassDefFoundError: Could not initialize class org.bytedeco.javacpp.avcodec
-        System.out.print("AtomicRNG v"+version+System.lineSeparator()+
-                "(c) 2015 by Thomas \"V10lator\" Rohloff."+System.lineSeparator()+
-                System.lineSeparator()+
-                "Initializing mysterious black box... ");
+        System.out.println("AtomicRNG v"+version+System.lineSeparator()+
+                "(c) 2015 by Thomas \"V10lator\" Rohloff."+System.lineSeparator());
+        
+        boolean quiet = false;
+        for(String arg: args) {
+            switch(arg) {
+                case("-q"):
+                    quiet = true;
+                    break;
+                case "-h":
+                    System.out.println("Arguments:"+System.lineSeparator()+
+                            " -q : Be quiet."+System.lineSeparator()+
+                            " -h : Show this help."+System.lineSeparator());
+                    break;
+                default:
+                    System.out.println("Unknown argument: "+arg+System.lineSeparator()+System.lineSeparator());
+            }
+        }
+        
+        System.out.print("Initializing mysterious black box... ");
         
         try {
             md = MessageDigest.getInstance("SHA-512");
@@ -152,9 +168,13 @@ public class AtomicRNG {
             return;
         }
         
-        String title = "AtomicRNG v"+version+" LiveView | FPS: X.X | Numbers/sec: Y.Y (Z.Z hashes/sec)";
-        CanvasFrame canvasFrame = new CanvasFrame(title);
-        canvasFrame.setDefaultCloseOperation(CanvasFrame.EXIT_ON_CLOSE);
+        String title = null;
+        CanvasFrame canvasFrame = null;
+        if(!quiet) {
+            title = "AtomicRNG v"+version+" LiveView | FPS: X.X | Numbers/sec: Y.Y (Z.Z hashes/sec)";
+            canvasFrame = new CanvasFrame(title);
+            canvasFrame.setDefaultCloseOperation(CanvasFrame.EXIT_ON_CLOSE);
+        }
         
         System.out.println("done!");
         
@@ -169,25 +189,30 @@ public class AtomicRNG {
             long start = System.currentTimeMillis();
             try {
                 if(start - lastSlice >= 10000L) {
-                    canvasFrame.setTitle(title.replaceAll("X\\.X", String.valueOf((float)fpsCount/10.0f)).replaceAll("Y\\.Y", String.valueOf((float)((hashCount*40)+numCount)/10.0f)).replaceAll("Z\\.Z", String.valueOf((float)hashCount/10.0f)));
-                    hashCount = fpsCount = numCount = 0;
+                    if(!quiet) {
+                        canvasFrame.setTitle(title.replaceAll("X\\.X", String.valueOf((float)fpsCount/10.0f)).replaceAll("Y\\.Y", String.valueOf((float)((hashCount*40)+numCount)/10.0f)).replaceAll("Z\\.Z", String.valueOf((float)hashCount/10.0f)));
+                        hashCount = fpsCount = numCount = 0;
+                    }
                     lastSlice = start;
                     osRNG.flush();
                 }
                 IplImage img = atomicRNGDevice.grab();
-                fpsCount++;
                 retries = 0;
                 if(img != null && !img.isNull()) {
+                    if(!quiet)
+                        fpsCount++;
                     if(statImg == null) {
                         width = img.width();
                         height = img.height();
-                        statXoffset = width + 2;
-                        int statWidth = statXoffset + width;
-                        statImg = new BufferedImage(statWidth, height, BufferedImage.TYPE_INT_RGB);
-                        for(int x = width + 1; x < statXoffset; x++)
-                            for(int y = 0; y < height; y++)
-                                statImg.setRGB(x, y, Color.RED.getRGB());
-                        canvasFrame.setCanvasSize(statWidth, height);
+                        if(!quiet) {
+                            statXoffset = width + 2;
+                            int statWidth = statXoffset + width;
+                            statImg = new BufferedImage(statWidth, height, BufferedImage.TYPE_INT_RGB);
+                            for(int x = width + 1; x < statXoffset; x++)
+                                for(int y = 0; y < height; y++)
+                                    statImg.setRGB(x, y, Color.RED.getRGB());
+                            canvasFrame.setCanvasSize(statWidth, height);
+                        }
 /*                        videoOut = new FFmpegFrameRecorder("~/Private/AtomicRNG-LiveView.mp4",  statWidth, height);
                         videoOut.setVideoCodec(13);
                         videoOut.setFormat("mp4");
@@ -205,17 +230,22 @@ public class AtomicRNG {
                     for(int y = 0; y < height; y++) {
                         for(int x = 0; x < width; x++) {
                             rgb = bImg.getRGB(x, y);
-                            statImg.setRGB(x, y, rgb);
+                            if(!quiet)
+                                statImg.setRGB(x, y, rgb);
                             color = new Color(rgb);
                             red = color.getRed();
                             green = color.getGreen();
                             blue = color.getBlue();
                             b = Color.RGBtoHSB(red, green, blue, new float[3])[2];
                             if(b < brightnessFilter) {
-                                statImg.setRGB(statXoffset + x, y, black);
+                                if(!quiet)
+                                    statImg.setRGB(statXoffset + x, y, black);
                                 continue;
                             }
-                            statImg.setRGB(statXoffset + x, y, rgb);
+                            if(!quiet) {
+                                statImg.setRGB(statXoffset + x, y, rgb);
+                                hashCount += 6;
+                            }
                             impact = true;
                             b -= brightnessFilter;
                             sb = String.valueOf(b);
@@ -227,23 +257,24 @@ public class AtomicRNG {
                             toOSrng(x, true);
                             toOSrng(y, true);
                             toOSrng(Integer.parseInt(sb), false);
-                            hashCount += 6;
                         }
                     }
                     if(impact) {
                         toOSrng((int)(start - lastFound), false);
                         lastFound = start;
-                        hashCount++;
+                        if(!quiet)
+                            hashCount++;
                     }
-                    Graphics graphics = statImg.getGraphics();
-                    graphics.setColor(yellow);
-                    graphics.setFont(font);
-                    graphics.drawString("Raw", width / 2 - 25, 25);
-                    graphics.drawString("Filtered", statXoffset + (width / 2 - 50), 25);
-                    
-                    canvasFrame.showImage(statImg);
-//                    videoOut.record(IplImage.createFrom(statImg));
-                    
+                    if(!quiet) {
+                        Graphics graphics = statImg.getGraphics();
+                        graphics.setColor(yellow);
+                        graphics.setFont(font);
+                        graphics.drawString("Raw", width / 2 - 25, 25);
+                        graphics.drawString("Filtered", statXoffset + (width / 2 - 50), 25);
+                        
+                        canvasFrame.showImage(statImg);
+//                        videoOut.record(IplImage.createFrom(statImg));
+                    }
                     img.release();
                 }
             } catch(Exception e) {
