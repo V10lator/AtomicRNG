@@ -26,22 +26,16 @@ coordinates) and the energy it carried or the light of the cherenkov radiation.
 Some of the numbers are hashed 2 times to get even more numbers.
 
 
-Next steps:
-	
-	- Otimize this even more.
-	
-	- Work with the raw OpenCV data instead of wrapping it to a BufferedImage.
-	
-	- Port to C++.
-	
-	- Port to C.
-	
-	- Port to kernel-space.
+Next steps:<br>
+ - Otimize this even more.<br>
+ - Work with the raw OpenCV data instead of wrapping it to a BufferedImage.<br>
+ - Port to C.<br>
+ - Port to kernel-space.<br>
 
 
-	[![Build Status](http://ci.eyrenetwork.net/job/AtomicRNG/badge/icon)](http://ci.eyrenetwork.net/job/AtomicRNG/)
+<img src="http://ci.eyrenetwork.net/job/AtomicRNG/badge/icon">
 
 
-[¹] http://www.inventgeek.com/alpha-radiation-visualizer/
-[²] http://en.wikipedia.org/wiki/Cherenkov_radiation
+[¹] http://www.inventgeek.com/alpha-radiation-visualizer/<br>
+[²] http://en.wikipedia.org/wiki/Cherenkov_radiation<br>
 [³] http://en.wikipedia.org/wiki/Blooming_(CCD)
