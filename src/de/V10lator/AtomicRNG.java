@@ -269,7 +269,7 @@ public class AtomicRNG {
                                 sb = String.valueOf(b);
                                 sb = sb.substring(sb.indexOf(".")+1);
                             } else {
-                                if(!(red > 32 || green > 32 || blue > 32)) {
+                                if(!(red > 16 || green > 16 || blue > 16)) {
                                     if(!quiet)
                                         statImg.setRGB(statXoffset + x, y, black);
                                     continue;
