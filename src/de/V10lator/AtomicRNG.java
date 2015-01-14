@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import net.jpountz.xxhash.XXHash64;
 import net.jpountz.xxhash.XXHashFactory;
@@ -86,13 +87,15 @@ public class AtomicRNG {
         /*
          * Write the result to /dev/random and update the statistics.
          */
+        String ret = Long.toBinaryString(out);
+        getLock(false);
         try {
-            String ret = Long.toBinaryString(out);
             osRNG.write(ret);
             numCount += ret.length();
         } catch (IOException e) {
             e.printStackTrace();
         }
+        lock.set(false);
     }
     
     /**
@@ -121,6 +124,24 @@ public class AtomicRNG {
         }
     }
     
+    private static final AtomicBoolean lock = new AtomicBoolean(false);
+    /**
+     * This is to get the lock.<b>
+     * This blocks till the lock could be aquired!
+     * @param aggressive This should normally be false as it needs way more CPU power.
+     */
+    private static void getLock(boolean aggressive) {
+        while(!lock.compareAndSet(false, true)) {
+            if(!aggressive) {
+                try {
+                    Thread.sleep(2L);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+    
     /**
      * Internal class trapped by Runtime.getRuntime().addShutdownHook();<br>
      * <br>
@@ -135,6 +156,7 @@ public class AtomicRNG {
             /*
              * Flush and close /dev/random.
              */
+            getLock(true);
             if(osRNG != null) {
                 try {
                     osRNG.flush();
@@ -151,6 +173,7 @@ public class AtomicRNG {
                     e.printStackTrace();
                 }
             }*/
+            lock.set(false);
             System.out.println("done!");
         }
     }
@@ -254,6 +277,7 @@ public class AtomicRNG {
             System.out.println("error ("+osRNGfile.exists()+"/"+(!osRNGfile.isDirectory())+"/"+osRNGfile.canWrite()+") !");
             System.exit(1);
         }
+        getLock(false);
         try {
             osRNG = new FileWriter(osRNGfile);
         } catch (IOException e) {
@@ -261,6 +285,7 @@ public class AtomicRNG {
             e.printStackTrace();
             System.exit(1);
         }
+        lock.set(false);
         
         /*
          * In case we should draw the window initialize it and set its title.
@@ -316,7 +341,9 @@ public class AtomicRNG {
                      * prepare to count the next 10 seconds and flush /dev/random.
                      */
                     lastSlice = start;
+                    getLock(false);
                     osRNG.flush();
+                    lock.set(false);
                 }
                 /*
                  * Grab a frame from the webcam.
