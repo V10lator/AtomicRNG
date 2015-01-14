@@ -56,10 +56,10 @@ public class AtomicRNG {
         }
         long out = xxHash.hash(ByteBuffer.wrap(Integer.toHexString(number).getBytes()), rand.nextLong());
         out += xxHash.hash(ByteBuffer.wrap(Integer.toHexString(number).getBytes()), rand.nextLong());
+        hashCount += 2;
         try {
             String ret = Long.toBinaryString(out);
             osRNG.write(ret);
-            hashCount++;
             numCount += ret.length();
         } catch (IOException e) {
             e.printStackTrace();
