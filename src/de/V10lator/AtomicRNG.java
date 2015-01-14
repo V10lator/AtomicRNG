@@ -189,7 +189,7 @@ public class AtomicRNG {
         for(int i = 0; i < 3; i++) {
             if(filterRGB[i] < rgb[i])
                 filterRGB[i] = rgb[i];
-            else if(rand.nextInt(100) < 1)
+            else if(rand.nextInt(1000) < 5)
                 filterRGB[i] -= (filterRGB[i] - rgb[i]) / 2;
         }
     }
