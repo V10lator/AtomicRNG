@@ -44,6 +44,7 @@ public class AtomicRNG {
     private static final int filter = 16;
     private static Random rand = null;
     private static int hashCount = 0;
+    private static long numCount = 0;
 //    private static FFmpegFrameRecorder videoOut = null;
     
     private static void toOSrng(int number) {
@@ -56,8 +57,10 @@ public class AtomicRNG {
         long out = xxHash.hash(ByteBuffer.wrap(Integer.toHexString(number).getBytes()), rand.nextLong());
         out += xxHash.hash(ByteBuffer.wrap(Integer.toHexString(number).getBytes()), rand.nextLong());
         try {
-            osRNG.write(Long.toBinaryString(out));
+            String ret = Long.toBinaryString(out);
+            osRNG.write(ret);
             hashCount++;
+            numCount += ret.length();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -205,8 +208,8 @@ public class AtomicRNG {
             try {
                 if(start - lastSlice >= 10000L) {
                     if(!quiet) {
-                        canvasFrame.setTitle(title.replaceAll("X\\.X", String.valueOf((float)fpsCount/10.0f)).replaceAll("Y\\.Y", String.valueOf((float)hashCount*4.0f)).replaceAll("Z\\.Z", String.valueOf((float)hashCount/10.0f)));
-                        hashCount = fpsCount = 0;
+                        canvasFrame.setTitle(title.replaceAll("X\\.X", String.valueOf((float)fpsCount/10.0f)).replaceAll("Y\\.Y", String.valueOf((float)numCount/10.0f)).replaceAll("Z\\.Z", String.valueOf((float)hashCount/10.0f)));
+                        numCount = hashCount = fpsCount = 0;
                     }
                     lastSlice = start;
                     osRNG.flush();
