@@ -188,19 +188,6 @@ public class AtomicRNG {
     }
     
     /**
-     * This adjust the filter to the new RGB values of a pixel.
-     * @param rgb The red, green and blue values.
-     */
-    private static void adjustFilter(int[] rgb) {
-        for(int i = 0; i < 3; i++) {
-            if(filterRGB[i] < rgb[i])
-                filterRGB[i] += (rgb[i] - filterRGB[i]) / 2;
-            else
-                filterRGB[i] -= (filterRGB[i] - rgb[i]) / 2;
-        }
-    }
-    
-    /**
      * The main function called by the JVM.<br>
      * Most of the action happens in here.
      * @param args
@@ -417,7 +404,7 @@ public class AtomicRNG {
                     int[] rgb = new int[3];
                     int rrgb, red, green, blue;
                     Color color;
-                    boolean impact = false, active;
+                    boolean impact = false;
                     Pixelstorage ps;
                     for(int y = 0; y < height; y++) {
                         for(int x = 0; x < width; x++) {
