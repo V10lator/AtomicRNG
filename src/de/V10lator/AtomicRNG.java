@@ -287,14 +287,16 @@ public class AtomicRNG {
         }
         
         /*
-         *  Throw away the first 5 seconds cause of hardware init.
+         *  Throw away the first 7 seconds cause of hardware init.
          */
-        for(int i = 0; i < (9*5); i++)
+        long start = System.currentTimeMillis();
+        while(System.currentTimeMillis() - start < 7000L) {
             try {
                 atomicRNGDevice.grab().release();
             } catch (org.bytedeco.javacv.FrameGrabber.Exception e) {
                 restartAtomicRNGDevice(e);
             }
+        }
         
         /*
          *  Open the Linux RNG and keep it open all the time.
@@ -353,7 +355,7 @@ public class AtomicRNG {
             /*
              * First get the start time of that loop run.
              */
-            long start = System.currentTimeMillis();
+            start = System.currentTimeMillis();
             /*
              * Catch everything and in case of an error: Restart the ARV device.
              */
