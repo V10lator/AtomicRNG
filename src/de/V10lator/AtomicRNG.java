@@ -43,7 +43,7 @@ public class AtomicRNG {
     private static String version;
     private static final int filter = 16;
     private static final int filterRGB[] = {16, 16, 16};
-    private static final int filterS = 3;
+    private static final int filterS = 5;
     
     private static Random rand = null;
     private static int hashCount = 0;
@@ -309,7 +309,10 @@ public class AtomicRNG {
         String title = null;
         CanvasFrame canvasFrame = null;
         if(!quiet) {
-            title = "AtomicRNG v"+version+" | FPS: X.X | Numbers/sec: Y.Y (Z.Z hashes/sec)";
+            if(experimentalFilter)
+                title = "AtomicRNG v"+version+" | FPS: X.X | Numbers/sec: Y.Y (Z.Z hashes/sec) | Filter: X/Y/Z";
+            else
+                title = "AtomicRNG v"+version+" | FPS: X.X | Numbers/sec: Y.Y (Z.Z hashes/sec)";
             canvasFrame = new CanvasFrame(title);
             canvasFrame.setDefaultCloseOperation(CanvasFrame.EXIT_ON_CLOSE);
         }
@@ -350,7 +353,10 @@ public class AtomicRNG {
                      * ...update the windows title with the newest statistics...
                      */
                     if(!quiet) {
-                        canvasFrame.setTitle(title.replaceAll("X\\.X", String.valueOf((float)fpsCount/10.0f)).replaceAll("Y\\.Y", String.valueOf((float)numCount/10.0f)).replaceAll("Z\\.Z", String.valueOf((float)hashCount/10.0f)));
+                        if(experimentalFilter)
+                            canvasFrame.setTitle(title.replaceAll("X\\.X", String.valueOf((float)fpsCount/10.0f)).replaceAll("Y\\.Y", String.valueOf((float)numCount/10.0f)).replaceAll("Z\\.Z", String.valueOf((float)hashCount/10.0f)).replaceAll("X/Y/Z", String.valueOf(filterRGB[0])+"/"+String.valueOf(filterRGB[1])+"/"+String.valueOf(filterRGB[2])));
+                        else
+                            canvasFrame.setTitle(title.replaceAll("X\\.X", String.valueOf((float)fpsCount/10.0f)).replaceAll("Y\\.Y", String.valueOf((float)numCount/10.0f)).replaceAll("Z\\.Z", String.valueOf((float)hashCount/10.0f)));
                         numCount = hashCount = fpsCount = 0;
                     }
                     /*
