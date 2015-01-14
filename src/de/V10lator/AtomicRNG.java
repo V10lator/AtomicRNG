@@ -328,6 +328,7 @@ public class AtomicRNG {
          */
         int fpsCount = 0, width = 0, statXoffset = 0, height = 0;
         int black = Color.BLACK.getRGB();
+        int white = Color.WHITE.getRGB();
         Color yellow = new Color(1.0f, 1.0f, 0.0f, 0.1f);
         BufferedImage statImg = null;
         Font font = new Font("Arial Black", Font.PLAIN, 18);
@@ -463,10 +464,10 @@ public class AtomicRNG {
                                 }
                             }
                             /*
-                             * If there's data copy the pixel to the filtered image.
+                             * If there's data highlight the pixel on the filtered image.
                              */
                             if(!quiet)
-                                statImg.setRGB(statXoffset + x, y, rrgb);
+                                statImg.setRGB(statXoffset + x, y, white);
                             /*
                              * Register the data.
                              */
