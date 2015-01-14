@@ -43,7 +43,7 @@ public class AtomicRNG {
     private static String version;
     private static final int filter = 16;
     private static final int filterRGB[] = {16, 16, 16};
-    private static final int filterS = 8;
+    private static final int filterS = 4;
     
     private static Random rand = null;
     private static int hashCount = 0;
@@ -83,7 +83,7 @@ public class AtomicRNG {
         /*
          * From time to time use the result to re-seed the internal RNG and exit.
          */
-        if(rand.nextBoolean() && rand.nextBoolean() && rand.nextBoolean()) {
+        if(rand.nextInt(100) < 5) {
             rand.setSeed(out);
             return;
         }
@@ -275,9 +275,9 @@ public class AtomicRNG {
         }
         
         /*
-         *  Throw away the first 4 seconds cause of hardware init.
+         *  Throw away the first 5 seconds cause of hardware init.
          */
-        for(int i = 0; i < (9*4); i++)
+        for(int i = 0; i < (9*5); i++)
             try {
                 atomicRNGDevice.grab().release();
             } catch (org.bytedeco.javacv.FrameGrabber.Exception e) {
