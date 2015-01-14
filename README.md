@@ -30,8 +30,8 @@ totally black images from time to time.
 Some of the numbers are hashed 2 times to get even more numbers.
 
 
-My average numbers/sec is around 1000. This number might depend on the material
-used in your Alpha-Ray-Visualizer, its build quality and other factors.
+My average numbers/sec is around ~~1000~~ 2500. This number might depend on the
+material used in your Alpha-Ray-Visualizer, its build quality and other factors.
 
 
 Next steps:<br>
