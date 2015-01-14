@@ -208,7 +208,7 @@ public class AtomicRNG {
         /*
          * Tell the user we're going to initialize the ARV device.
          */
-        System.out.print("Initializing Alpha-Ray-Visualizer... ");
+        System.out.print("Initializing Alpha Ray Visualizer... ");
         
         /*
          * Initialize the fastest available xxHash algorithm.
