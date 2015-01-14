@@ -43,7 +43,7 @@ public class AtomicRNG {
     private static String version;
     private static final int filter = 16;
     private static final int filterRGB[] = {16, 16, 16};
-    private static final int filterS = 5;
+    private static final int filterS = 8;
     
     private static Random rand = null;
     private static int hashCount = 0;
