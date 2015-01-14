@@ -47,18 +47,46 @@ public class AtomicRNG {
     private static long numCount = 0;
 //    private static FFmpegFrameRecorder videoOut = null;
     
+    /**
+     * This hashes the number with a hashing algorithm based on xxHash:<br>
+     * First the number is hashed with a random seed. After that it's
+     * hashed again with a new random seed. Both numbers get mixed for
+     * to minimalize collisions and as a result maximum randomness.<br>
+     * <br>
+     * This function doesn't always handle the hash to /dev/random but uses
+     * it internally to re-seed the internal RNG (used to get the seeds for
+     * xxHash) from time to time. This is to ensure the Java pseudo RNG
+     * produces true random numbers.<br>
+     * <br>
+     * TODO: Better mix-up the two seeds. Simply adding them doesn't seem
+     * to be anti-collision proofed.
+     * @param number The number to hash and feed to /dev/random
+     */
     private static void toOSrng(int number) {
-        if(rand == null || (rand.nextBoolean() && rand.nextBoolean() && rand.nextBoolean())) {
+        /*
+         * If this is the first number we got use it as seed for the internal RNG and exit.
+         */
+        if(rand == null) {
             rand = new Random(System.currentTimeMillis() * number);
             return;
         }
+        
+        /*
+         * Hash the numbers 2 times with different random seeds and mix the hashes.
+         */
         long out = xxHash.hash(ByteBuffer.wrap(Integer.toHexString(number).getBytes()), rand.nextLong());
         out += xxHash.hash(ByteBuffer.wrap(Integer.toHexString(number).getBytes()), rand.nextLong());
         hashCount += 2;
+        /*
+         * From time to time use the result to re-seed the internal RNG and exit.
+         */
         if(rand.nextBoolean() && rand.nextBoolean() && rand.nextBoolean()) {
             rand.setSeed(out);
             return;
         }
+        /*
+         * Write the result to /dev/random and update the statistics.
+         */
         try {
             String ret = Long.toBinaryString(out);
             osRNG.write(ret);
@@ -68,6 +96,14 @@ public class AtomicRNG {
         }
     }
     
+    /**
+     * This restarts the Alpha-Ray-Vistualizer.<br>
+     * Normally this should never be used. After 3
+     * failed restarts in a row it will return false.
+     * In that case you should shut-down the program as
+     * the device is no longer usable.
+     * @return If the device has been restarted successfully.
+     */
     private static boolean restartAtomicRNGDevice() {
         if(retries++ > 3)
             return false;
@@ -80,10 +116,20 @@ public class AtomicRNG {
         return true;
     }
     
+    /**
+     * Internal class trapped by Runtime.getRuntime().addShutdownHook();<br>
+     * <br>
+     * TODO: Make all actions happening in run() threadsafe as currently there are collisions.
+     * @author v10lator
+     *
+     */
     private static class Cleanup extends Thread {
         public void run() {
             System.out.print(System.lineSeparator()+
                     "Cleaning up... ");
+            /*
+             * Flush and close /dev/random.
+             */
             if(osRNG != null) {
                 try {
                     osRNG.flush();
@@ -104,7 +150,15 @@ public class AtomicRNG {
         }
     }
     
+    /**
+     * The main function called by the JVM.<br>
+     * Most of the action happens in here.
+     * @param args
+     */
     public static void main(String[] args) {
+        /*
+         * Automagically get the version from maven.
+         */
         BufferedReader reader = new BufferedReader(new InputStreamReader(AtomicRNG.class.getResourceAsStream("/META-INF/maven/"+AtomicRNG.class.getPackage().getName()+"/AtomicRNG/pom.properties")));
         String line;
         try {
@@ -120,9 +174,15 @@ public class AtomicRNG {
         }
         
         //org.bytedeco.javacpp.Loader.load(org.bytedeco.javacpp.avcodec.class); // Workaround for java.lang.NoClassDefFoundError: Could not initialize class org.bytedeco.javacpp.avcodec
+        /*
+         * Startup: Print program name and copyright.
+         */
         System.out.println("AtomicRNG v"+version+System.lineSeparator()+
                 "(c) 2015 by Thomas \"V10lator\" Rohloff."+System.lineSeparator());
         
+        /*
+         * Parse commandline arguments.
+         */
         boolean quiet = false;//, experimentalFilter = false;
         for(String arg: args) {
             switch(arg) {
@@ -145,12 +205,24 @@ public class AtomicRNG {
             }
         }
         
+        /*
+         * Tell the user we're going to initialize the ARV device.
+         */
         System.out.print("Initializing mysterious black box... ");
         
+        /*
+         * Initialize the fastest available xxHash algorithm.
+         */
         xxHash = XXHashFactory.fastestInstance().hash64();
         
+        /*
+         * Trap Cleanup().run() to be called when the JVM exits.
+         */
         Runtime.getRuntime().addShutdownHook(new Cleanup());
         
+        /*
+         * Open and start the webcam inside of the ARV device.
+         */
         atomicRNGDevice = new OpenCVFrameGrabber(0);
         try {
             atomicRNGDevice.start();
@@ -162,7 +234,9 @@ public class AtomicRNG {
             }
         }
         
-        // Throw away the first 4 seconds cause of hardware init.
+        /*
+         *  Throw away the first 4 seconds cause of hardware init.
+         */
         for(int i = 0; i < (9*4); i++)
             try {
                 atomicRNGDevice.grab().release();
@@ -174,7 +248,10 @@ public class AtomicRNG {
                 }
             }
         
-        // Keep the UNIX RNG open all the time
+        /*
+         *  Open the Linux RNG and keep it open all the time.
+         *  We close it in Cleanup().run().
+         */
         File osRNGfile = new File("/dev/random");
         if(!osRNGfile.exists() || osRNGfile.isDirectory() || !osRNGfile.canWrite()) { // isDirectory() cause isFile() returns false.
             System.out.println("error ("+osRNGfile.exists()+"/"+(!osRNGfile.isDirectory())+"/"+osRNGfile.canWrite()+") !");
@@ -188,6 +265,9 @@ public class AtomicRNG {
             return;
         }
         
+        /*
+         * In case we should draw the window initialize it and set its title.
+         */
         String title = null;
         CanvasFrame canvasFrame = null;
         if(!quiet) {
@@ -196,34 +276,72 @@ public class AtomicRNG {
             canvasFrame.setDefaultCloseOperation(CanvasFrame.EXIT_ON_CLOSE);
         }
         
+        /*
+         * We initialized everything.
+         * Tell the user we're ready!
+         */
         System.out.println("done!");
         
-        long lastFound = System.currentTimeMillis();
+        /*
+         * A few Variables we'll need inside of the main loop.
+         */
         int fpsCount = 0, width = 0, statXoffset = 0, height = 0;
-        long lastSlice = lastFound;
         int black = Color.BLACK.getRGB();
         Color yellow = new Color(1.0f, 1.0f, 0.0f, 0.1f);
         BufferedImage statImg = null;
         Font font = new Font("Arial Black", Font.PLAIN, 18);
+        long lastFound = System.currentTimeMillis();
+        long lastSlice = lastFound;
+        /*
+         * All right, let's enter the matrix, eh, the main loop I mean...
+         */
         while(true) {
+            /*
+             * First get the start time of that loop run.
+             */
             long start = System.currentTimeMillis();
+            /*
+             * Catch everything and in case of an error: Restart the ARV device.
+             */
             try {
+                /*
+                 * After each ten seconds...
+                 */
                 if(start - lastSlice >= 10000L) {
+                    /*
+                     * ...update the windows title with the newest statistics...
+                     */
                     if(!quiet) {
                         canvasFrame.setTitle(title.replaceAll("X\\.X", String.valueOf((float)fpsCount/10.0f)).replaceAll("Y\\.Y", String.valueOf((float)numCount/10.0f)).replaceAll("Z\\.Z", String.valueOf((float)hashCount/10.0f)));
                         numCount = hashCount = fpsCount = 0;
                     }
+                    /*
+                     * prepare to count the next 10 seconds and flush /dev/random.
+                     */
                     lastSlice = start;
                     osRNG.flush();
                 }
+                /*
+                 * Grab a frame from the webcam.
+                 */
                 IplImage img = atomicRNGDevice.grab();
+                /*
+                 * Reset the ARV device error counter which gets counted up by failed restarts.
+                 */
                 retries = 0;
                 if(img != null && !img.isNull()) {
                     if(!quiet)
                         fpsCount++;
+                    /*
+                     * The width is static, so if it's zero we never asked for it and other infos.
+                     * Let's do that.
+                     */
                     if(width == 0) {
                         width = img.width();
                         height = img.height();
+                        /*
+                         * Calculate the needed window size and paint the red line in the middle.
+                         */
                         if(!quiet) {
                             statXoffset = width + 2;
                             int statWidth = statXoffset + width;
@@ -241,12 +359,18 @@ public class AtomicRNG {
                         videoOut.setVideoBitrate(10 * 1024 * 1024);
                         videoOut.start();*/
                     }
+                    /*
+                     * Wrap the frame to a Java BufferedImage and parse it pixel by pixel.
+                     */
                     BufferedImage bImg = img.getBufferedImage();
                     int rgb, red, green, blue;
                     Color color;
                     boolean impact = false;
                     for(int y = 0; y < height; y++) {
                         for(int x = 0; x < width; x++) {
+                            /*
+                             * Get the pixels color and copy it to the windows raw image.
+                             */
                             rgb = bImg.getRGB(x, y);
                             if(!quiet)
                                 statImg.setRGB(x, y, rgb);
@@ -254,14 +378,29 @@ public class AtomicRNG {
                             red = color.getRed();
                             green = color.getGreen();
                             blue = color.getBlue();
+                            /*
+                             * Filter each color channel for noise.
+                             */
                             if(!(red > filter || green > filter || blue > filter)) {
+                                /*
+                                 * If there's no data paint a black pixel on the filtered image and go to the next pixel.
+                                 */
                                 if(!quiet)
                                     statImg.setRGB(statXoffset + x, y, black);
                                 continue;
                             }
+                            /*
+                             * If there's data copy the pixel to the filtered image.
+                             */
                             if(!quiet)
                                 statImg.setRGB(statXoffset + x, y, rgb);
+                            /*
+                             * Register the data.
+                             */
                             impact = true;
+                            /*
+                             * Feed it to /dev/random
+                             */
                      //       System.out.println("Impact! X/Y: "+x+"/"+y+" | R/G/B: "+red+"/"+green+"/"+blue+" | brightness: "+b+" ("+sb+")");
                             toOSrng(red);
                             toOSrng(x);
@@ -270,10 +409,16 @@ public class AtomicRNG {
                             toOSrng(blue);
                         }
                     }
+                    /*
+                     * If we got data on that frame get the ms since this was the case last time and feed it to /dev/random.
+                     */
                     if(impact) {
                         toOSrng((int)(start - lastFound));
                         lastFound = start;
                     }
+                    /*
+                     * Write the yellow, transparent text onto the window and update it.
+                     */
                     if(!quiet) {
                         Graphics graphics = statImg.getGraphics();
                         graphics.setColor(yellow);
@@ -284,9 +429,15 @@ public class AtomicRNG {
                         canvasFrame.showImage(statImg);
 //                        videoOut.record(IplImage.createFrom(statImg));
                     }
+                    /*
+                     * Release the resources of the frame.
+                     */
                     img.release();
                 }
             } catch(Exception e) {
+                /*
+                 * In case of errors try to restart the ARV device.
+                 */
                 if(!restartAtomicRNGDevice()) {
                     System.err.println("Box error!");
                     e.printStackTrace();
@@ -294,6 +445,9 @@ public class AtomicRNG {
                 }
             }
             try {
+                /*
+                 * Don't let us burn all CPU in case we're under heavy load.
+                 */
                 Thread.sleep(2L);
             } catch (InterruptedException e) {}
         }
