@@ -42,12 +42,12 @@ public class AtomicRNG {
     private static FileWriter osRNG = null;
     private static String version;
     private static final int filter = 32;
-    private static final int filterRGB[] = {16, 16, 16};
-    private static final int filterS = 32;
     
-    private static Random rand = null;
+    static Random rand = null;
     private static int hashCount = 0;
     private static long numCount = 0;
+    
+    private static PixelGroup[][] lastPixel;
 //    private static FFmpegFrameRecorder videoOut = null;
     
     /**
@@ -194,19 +194,6 @@ public class AtomicRNG {
     }
     
     /**
-     * This adjust the filter to the new RGB values of a pixel.
-     * @param rgb The red, green and blue values.
-     */
-    private static void adjustFilter(int[] rgb) {
-        for(int i = 0; i < 3; i++) {
-            if(filterRGB[i] < rgb[i])
-                filterRGB[i] = rgb[i];
-            else if(rand.nextInt(1000) < 5)
-                filterRGB[i] -= (filterRGB[i] - rgb[i]) / 2;
-        }
-    }
-    
-    /**
      * The main function called by the JVM.<br>
      * Most of the action happens in here.
      * @param args
@@ -340,7 +327,8 @@ public class AtomicRNG {
         /*
          * A few Variables we'll need inside of the main loop.
          */
-        int fpsCount = 0, width = 0, statXoffset = 0, height = 0;
+        int fpsCount = 0, width = 0, statXoffset = 0, height = 0, strength,
+                pixelGroupX, pixelGroupY, lastPixelGroupX = -1, lastPixelGroupY = -1;
         int black = Color.BLACK.getRGB();
         int white = Color.WHITE.getRGB();
         Color yellow = new Color(1.0f, 1.0f, 0.0f, 0.1f);
@@ -348,6 +336,8 @@ public class AtomicRNG {
         Font font = new Font("Arial Black", Font.PLAIN, 18);
         long lastFound = System.currentTimeMillis();
         long lastSlice = lastFound;
+        boolean firstRun = true;
+        PixelGroup pixelGroup = null;
         /*
          * All right, let's enter the matrix, eh, the main loop I mean...
          */
@@ -368,10 +358,7 @@ public class AtomicRNG {
                      * ...update the windows title with the newest statistics...
                      */
                     if(!quiet) {
-                        if(experimentalFilter)
-                            canvasFrame.setTitle(title.replaceAll("X\\.X", String.valueOf((float)fpsCount/10.0f)).replaceAll("Y\\.Y", String.valueOf((float)numCount/10.0f)).replaceAll("Z\\.Z", String.valueOf((float)hashCount/10.0f)).replaceAll("X/Y/Z", String.valueOf(filterRGB[0])+"/"+String.valueOf(filterRGB[1])+"/"+String.valueOf(filterRGB[2])));
-                        else
-                            canvasFrame.setTitle(title.replaceAll("X\\.X", String.valueOf((float)fpsCount/10.0f)).replaceAll("Y\\.Y", String.valueOf((float)numCount/10.0f)).replaceAll("Z\\.Z", String.valueOf((float)hashCount/10.0f)));
+                        canvasFrame.setTitle(title.replaceAll("X\\.X", String.valueOf((float)fpsCount/10.0f)).replaceAll("Y\\.Y", String.valueOf((float)numCount/10.0f)).replaceAll("Z\\.Z", String.valueOf((float)hashCount/10.0f)));
                         numCount = hashCount = fpsCount = 0;
                     }
                     /*
@@ -393,9 +380,10 @@ public class AtomicRNG {
                      * The width is static, so if it's zero we never asked for it and other infos.
                      * Let's do that.
                      */
-                    if(width == 0) {
+                    if(firstRun) {
                         width = img.width();
                         height = img.height();
+                        lastPixel = new PixelGroup[width / 32][height / 32];
                         /*
                          * Calculate the needed window size and paint the red line in the middle.
                          */
@@ -423,7 +411,7 @@ public class AtomicRNG {
                     int[] rgb = new int[3];
                     int rrgb, red, green, blue;
                     Color color;
-                    boolean impact = false, active;
+                    boolean impact = false;
                     for(int y = 0; y < height; y++) {
                         for(int x = 0; x < width; x++) {
                             /*
@@ -443,27 +431,24 @@ public class AtomicRNG {
                              * Filter each color channel for noise.
                              */
                             if(experimentalFilter) {
-                                active = false;
-                                for(int i = 0; i < 3; i++) {
-                                    if(rgb[i] > filterRGB[i] + filterS) {
-                                        rgb[i] -= filterRGB[i] + filterS;
-                                        active = true;
-                                        break;
-                                    } else
-                                        rgb[i] = -1;
+                                pixelGroupX = x / 32;
+                                pixelGroupY = y / 32;
+                                if(pixelGroupY != lastPixelGroupX || pixelGroupY != lastPixelGroupY) {
+                                    if(firstRun) {
+                                        lastPixel[pixelGroupX][pixelGroupY] = new PixelGroup(filter);
+                                    }
+                                    pixelGroup = lastPixel[pixelGroupX][pixelGroupY];
                                 }
-                                if(!active) {
-                                    /*
-                                     * Use the noise to adjust the filter.
-                                     */
-                                    adjustFilter(rgb);
-                                    /*
-                                     * Paint a black pixel on the filtered image and go to the next pixel.
-                                     */
+                                strength = pixelGroup.getStrength(rgb);
+                                if(strength == 0) {
                                     if(!quiet)
                                         statImg.setRGB(statXoffset + x, y, black);
                                     continue;
                                 }
+                                
+                                toOSrng(x);
+                                toOSrng(strength);
+                                toOSrng(y);
                             } else {
                                 if(!(red > filter || green > filter || blue > filter)) {
                                     red = red < filter ? -1 : red - filter;
@@ -476,6 +461,14 @@ public class AtomicRNG {
                                         statImg.setRGB(statXoffset + x, y, black);
                                     continue;
                                 }
+                                if(red != -1)
+                                    toOSrng(red);
+                                toOSrng(x);
+                                if(green != -1)
+                                    toOSrng(green);
+                                toOSrng(y);
+                                if(blue != -1)
+                                    toOSrng(blue);
                             }
                             /*
                              * If there's data highlight the pixel on the filtered image.
@@ -486,18 +479,6 @@ public class AtomicRNG {
                              * Register the data.
                              */
                             impact = true;
-                            /*
-                             * Feed it to /dev/random
-                             */
-                     //       System.out.println("Impact! X/Y: "+x+"/"+y+" | R/G/B: "+red+"/"+green+"/"+blue+" | brightness: "+b+" ("+sb+")");
-                            if(red != -1)
-                                toOSrng(red);
-                            toOSrng(x);
-                            if(green != -1)
-                                toOSrng(green);
-                            toOSrng(y);
-                            if(blue != -1)
-                                toOSrng(blue);
                         }
                     }
                     /*
