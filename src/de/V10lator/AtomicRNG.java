@@ -203,7 +203,7 @@ public class AtomicRNG {
                 if(start - lastSlice >= 10000L) {
                     if(!quiet) {
                         canvasFrame.setTitle(title.replaceAll("X\\.X", String.valueOf((float)fpsCount/10.0f)).replaceAll("Y\\.Y", String.valueOf((float)hashCount*4.0f)).replaceAll("Z\\.Z", String.valueOf((float)hashCount/10.0f)));
-                        hashCount = fpsCount;
+                        hashCount = fpsCount = 0;
                     }
                     lastSlice = start;
                     osRNG.flush();
