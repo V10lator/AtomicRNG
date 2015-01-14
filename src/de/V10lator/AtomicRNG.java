@@ -36,7 +36,6 @@ import org.bytedeco.javacv.OpenCVFrameGrabber;
 import org.bytedeco.javacpp.opencv_core.IplImage;
 
 public class AtomicRNG {
-    private static int retries = 0;
     private static XXHash64 xxHash = null;
     private static OpenCVFrameGrabber atomicRNGDevice;
     private static FileWriter osRNG = null;
@@ -99,21 +98,27 @@ public class AtomicRNG {
     /**
      * This restarts the Alpha-Ray-Vistualizer.<br>
      * Normally this should never be used. After 3
-     * failed restarts in a row it will return false.
-     * In that case you should shut-down the program as
-     * the device is no longer usable.
-     * @return If the device has been restarted successfully.
+     * failed restarts in a row it will quit the program.
      */
-    private static boolean restartAtomicRNGDevice() {
-        if(retries++ > 3)
-            return false;
-        try {
-            atomicRNGDevice.restart();
-        } catch (org.bytedeco.javacv.FrameGrabber.Exception e) {
-            return restartAtomicRNGDevice();
+    private static void restartAtomicRNGDevice(Exception why) {
+        Exception trace = null;
+        for(int i = 0; i < 3; i++) {
+            try {
+                atomicRNGDevice.restart();
+                trace = null;
+                break;
+            } catch (org.bytedeco.javacv.FrameGrabber.Exception e) {
+                e.addSuppressed(why);
+                trace = e;
+            }
+            try {
+                Thread.sleep(500L);
+            } catch (InterruptedException e) {}
         }
-        retries = 0;
-        return true;
+        if(trace != null) {
+            trace.printStackTrace();
+            System.exit(1);
+        }
     }
     
     /**
@@ -170,7 +175,7 @@ public class AtomicRNG {
             reader.close();
         } catch (IOException e) {
             e.printStackTrace();
-            return;
+            System.exit(1);
         }
         
         //org.bytedeco.javacpp.Loader.load(org.bytedeco.javacpp.avcodec.class); // Workaround for java.lang.NoClassDefFoundError: Could not initialize class org.bytedeco.javacpp.avcodec
@@ -201,7 +206,7 @@ public class AtomicRNG {
                     return;
                 default:
                     System.out.println("Unknown argument: "+arg+System.lineSeparator()+System.lineSeparator());
-                    return;
+                    System.exit(1);
             }
         }
         
@@ -227,11 +232,7 @@ public class AtomicRNG {
         try {
             atomicRNGDevice.start();
         } catch(Exception e) {
-            if(!restartAtomicRNGDevice()) {
-                System.err.println("error!");
-                e.printStackTrace();
-                return;
-            }
+            restartAtomicRNGDevice(e);
         }
         
         /*
@@ -241,11 +242,7 @@ public class AtomicRNG {
             try {
                 atomicRNGDevice.grab().release();
             } catch (org.bytedeco.javacv.FrameGrabber.Exception e) {
-                if(!restartAtomicRNGDevice()) {
-                    System.err.println("Box error!");
-                    e.printStackTrace();
-                    return;
-                }
+                restartAtomicRNGDevice(e);
             }
         
         /*
@@ -255,14 +252,14 @@ public class AtomicRNG {
         File osRNGfile = new File("/dev/random");
         if(!osRNGfile.exists() || osRNGfile.isDirectory() || !osRNGfile.canWrite()) { // isDirectory() cause isFile() returns false.
             System.out.println("error ("+osRNGfile.exists()+"/"+(!osRNGfile.isDirectory())+"/"+osRNGfile.canWrite()+") !");
-            return;
+            System.exit(1);
         }
         try {
             osRNG = new FileWriter(osRNGfile);
         } catch (IOException e) {
             System.out.println("error!");
             e.printStackTrace();
-            return;
+            System.exit(1);
         }
         
         /*
@@ -325,10 +322,6 @@ public class AtomicRNG {
                  * Grab a frame from the webcam.
                  */
                 IplImage img = atomicRNGDevice.grab();
-                /*
-                 * Reset the ARV device error counter which gets counted up by failed restarts.
-                 */
-                retries = 0;
                 if(img != null && !img.isNull()) {
                     if(!quiet)
                         fpsCount++;
@@ -435,14 +428,7 @@ public class AtomicRNG {
                     img.release();
                 }
             } catch(Exception e) {
-                /*
-                 * In case of errors try to restart the ARV device.
-                 */
-                if(!restartAtomicRNGDevice()) {
-                    System.err.println("Box error!");
-                    e.printStackTrace();
-                    return;
-                }
+                restartAtomicRNGDevice(e);
             }
             try {
                 /*
