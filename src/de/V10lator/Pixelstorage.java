@@ -1,8 +1,8 @@
 package de.V10lator;
 
 class Pixelstorage {
-    private final int[] maxRGB = new int[3];
-    private final int[] lastRGB = new int[3];
+    private final int[] maxRGB;
+    private final int[] lastRGB;
     final int[] power = { 0, 0, 0 };
     private final short cooldown[] = { 0, 0, 0 };
     private long started = 0L;
@@ -10,10 +10,8 @@ class Pixelstorage {
     private boolean tick = true;
     
     Pixelstorage(int[] rgb, int[] maxRGB) {
-        for(int i = 0; i < 3; i++) {
-            this.maxRGB[i] = maxRGB[i];
-            this.lastRGB[i] = rgb[i];
-        }
+        this.maxRGB = maxRGB;
+        lastRGB = rgb;
     }
     
     Pixelstorage update(int rgb[]) {
