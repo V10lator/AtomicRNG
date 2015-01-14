@@ -65,7 +65,7 @@ public class AtomicRNG {
      * to be anti-collision proofed.
      * @param number The number to hash and feed to /dev/random
      */
-    private static void toOSrng(int number) {
+    private static void toOSrng(long number) {
         /*
          * If this is the first number we got use it as seed for the internal RNG and exit.
          */
@@ -75,10 +75,22 @@ public class AtomicRNG {
         }
         
         /*
-         * Hash the numbers 2 times with different random seeds and mix the hashes.
+         * Hash the numbers 2 times with different random seeds and mix the hashes randomly.
          */
-        long out = xxHash.hash(ByteBuffer.wrap(Integer.toHexString(number).getBytes()), rand.nextLong());
-        out += xxHash.hash(ByteBuffer.wrap(Integer.toHexString(number).getBytes()), rand.nextLong());
+        long out = xxHash.hash(ByteBuffer.wrap(Long.toHexString(number).getBytes()), rand.nextLong());
+        number = xxHash.hash(ByteBuffer.wrap(Long.toHexString(number).getBytes()), rand.nextLong());
+        int r = rand.nextInt(100);
+        if(r < 34)
+            out += number;
+        else if(r < 66) {
+            if(out < number) {
+                number -= out;
+                out = number;
+            } else
+                out -= number;
+        } else
+            out = (out / 2) + (number / 2);
+        
         hashCount += 2;
         /*
          * From time to time use the result to re-seed the internal RNG and exit.
