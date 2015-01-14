@@ -287,10 +287,10 @@ public class AtomicRNG {
         }
         
         /*
-         *  Throw away the first 7 seconds cause of hardware init.
+         *  Throw away the first 10 seconds cause of hardware init.
          */
         long start = System.currentTimeMillis();
-        while(System.currentTimeMillis() - start < 7000L) {
+        while(System.currentTimeMillis() - start < 10000L) {
             try {
                 atomicRNGDevice.grab().release();
             } catch (org.bytedeco.javacv.FrameGrabber.Exception e) {
