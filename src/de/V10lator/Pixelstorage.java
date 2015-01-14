@@ -26,11 +26,10 @@ class Pixelstorage {
                 } else {
                     if(rgb[i] > lastRGB[i])
                         lastRGB[i] = rgb[i];
-                    if(cooldown[i] == 1)
+                    if(--cooldown[i] == 1)
                         maxRGB[i] = lastRGB[i];
                     else
                         power[i] += rgb[i];
-                    cooldown[i]--;
                 }
             } else {
                 if(cooldown[i] > 0) {
@@ -38,7 +37,7 @@ class Pixelstorage {
                     lastRGB[i] = rgb[i];
                     cooldown[i] = 0;
                 } else
-                    if(tick && maxRGB[i] > rgb[i])
+                    if(tick)
                         maxRGB[i]--;
             }
         }
