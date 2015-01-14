@@ -213,7 +213,7 @@ public class AtomicRNG {
                 if(img != null && !img.isNull()) {
                     if(!quiet)
                         fpsCount++;
-                    if(statImg == null) {
+                    if(width == 0) {
                         width = img.width();
                         height = img.height();
                         if(!quiet) {
