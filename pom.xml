@@ -31,7 +31,11 @@
 			  <relocations>
 				<relocation>
 				  <pattern>org.bytedeco</pattern>
-				  <shadedPattern>org.bytedeco</shadedPattern>
+				  <shadedPattern>libs.org.bytedeco</shadedPattern>
+				</relocation>
+				<relocation>
+				  <pattern>net.jpountz.xxhash</pattern>
+				  <shadedPattern>libs.net.jpountz.xxhash</shadedPattern>
 				</relocation>
 			  </relocations>
               <transformers>
@@ -50,6 +54,11 @@
 	  <groupId>org.bytedeco</groupId>
       <artifactId>javacv</artifactId>
       <version>0.10</version>
+  	</dependency>
+  	<dependency>
+	  <groupId>net.jpountz.lz4</groupId>
+      <artifactId>lz4</artifactId>
+      <version>1.3.0</version>
   	</dependency>
   </dependencies>
 </project>

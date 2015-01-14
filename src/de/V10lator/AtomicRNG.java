@@ -23,8 +23,11 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import java.nio.ByteBuffer;
+import java.util.Random;
+
+import net.jpountz.xxhash.XXHash64;
+import net.jpountz.xxhash.XXHashFactory;
 
 import org.bytedeco.javacv.CanvasFrame;
 //import org.bytedeco.javacv.FFmpegFrameRecorder;
@@ -34,24 +37,30 @@ import org.bytedeco.javacpp.opencv_core.IplImage;
 
 public class AtomicRNG {
     private static int retries = 0;
-    private static MessageDigest md = null;
+    private static XXHash64 xxHash = null;
     private static OpenCVFrameGrabber atomicRNGDevice;
     private static FileWriter osRNG = null;
     private static String version;
     private static final int filter = 16;
+    private static Random rand = null;
+    private static int hashCount = 0;
 //    private static FFmpegFrameRecorder videoOut = null;
     
     private static void toOSrng(int number) {
-        byte[] hashStream = md.digest(Integer.toHexString(number).getBytes());
-        md.reset();
-        hashStream = md.digest(hashStream);
-        md.reset();
-        for (int i=0;i<hashStream.length;i++)
-            try {
-                osRNG.write(Integer.toHexString(0xFF & hashStream[i]));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+        if(rand == null || (rand.nextBoolean() && rand.nextBoolean() && rand.nextBoolean())) {
+            if(rand == null)
+                rand = new Random();
+            rand.setSeed(System.currentTimeMillis() * number);
+            return;
+        }
+        long out = xxHash.hash(ByteBuffer.wrap(Integer.toHexString(number).getBytes()), rand.nextLong());
+        out += xxHash.hash(ByteBuffer.wrap(Integer.toHexString(number).getBytes()), rand.nextLong());
+        try {
+            osRNG.write(Long.toBinaryString(out));
+            hashCount++;
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
     
     private static boolean restartAtomicRNGDevice() {
@@ -133,13 +142,7 @@ public class AtomicRNG {
         
         System.out.print("Initializing mysterious black box... ");
         
-        try {
-            md = MessageDigest.getInstance("SHA-512");
-        }
-        catch(NoSuchAlgorithmException e) {
-            e.printStackTrace();
-            return;
-        }
+        xxHash = XXHashFactory.fastestInstance().hash64();
         
         Runtime.getRuntime().addShutdownHook(new Cleanup());
         
@@ -191,7 +194,7 @@ public class AtomicRNG {
         System.out.println("done!");
         
         long lastFound = System.currentTimeMillis();
-        int fpsCount = 0, hashCount = 0, width = 0, statXoffset = 0, height = 0;
+        int fpsCount = 0, width = 0, statXoffset = 0, height = 0;
         long lastSlice = lastFound;
         int black = Color.BLACK.getRGB();
         Color yellow = new Color(1.0f, 1.0f, 0.0f, 0.1f);
@@ -251,10 +254,8 @@ public class AtomicRNG {
                                     statImg.setRGB(statXoffset + x, y, black);
                                 continue;
                             }
-                            if(!quiet) {
+                            if(!quiet)
                                 statImg.setRGB(statXoffset + x, y, rgb);
-                                hashCount += 6;
-                            }
                             impact = true;
                      //       System.out.println("Impact! X/Y: "+x+"/"+y+" | R/G/B: "+red+"/"+green+"/"+blue+" | brightness: "+b+" ("+sb+")");
                             toOSrng(red);
@@ -267,8 +268,6 @@ public class AtomicRNG {
                     if(impact) {
                         toOSrng((int)(start - lastFound));
                         lastFound = start;
-                        if(!quiet)
-                            hashCount++;
                     }
                     if(!quiet) {
                         Graphics graphics = statImg.getGraphics();
