@@ -449,6 +449,9 @@ public class AtomicRNG {
                                 }
                             } else {
                                 if(!(red > filter || green > filter || blue > filter)) {
+                                    red = red < filter ? -1 : red - filter;
+                                    green = green < filter ? -1 : green - filter;
+                                    blue = blue < filter ? -1 : blue - filter;
                                     /*
                                      * If there's no data paint a black pixel on the filtered image and go to the next pixel.
                                      */
@@ -470,11 +473,14 @@ public class AtomicRNG {
                              * Feed it to /dev/random
                              */
                      //       System.out.println("Impact! X/Y: "+x+"/"+y+" | R/G/B: "+red+"/"+green+"/"+blue+" | brightness: "+b+" ("+sb+")");
-                            toOSrng(red);
+                            if(red != -1)
+                                toOSrng(red);
                             toOSrng(x);
-                            toOSrng(green);
+                            if(green != -1)
+                                toOSrng(green);
                             toOSrng(y);
-                            toOSrng(blue);
+                            if(blue != -1)
+                                toOSrng(blue);
                         }
                     }
                     /*
