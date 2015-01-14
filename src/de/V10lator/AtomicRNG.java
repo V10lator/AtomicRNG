@@ -50,12 +50,6 @@ public class AtomicRNG {
     private static long numCount = 0;
 //    private static FFmpegFrameRecorder videoOut = null;
     
-    /*
-     * Variables for experimental dynamic filter
-     * 
-     */
-    private static Pixelstorage[][] pixelmap = null;
-    
     /**
      * This hashes the number with a hashing algorithm based on xxHash:<br>
      * First the number is hashed with a random seed. After that it's
@@ -69,9 +63,9 @@ public class AtomicRNG {
      * <br>
      * TODO: Better mix-up the two seeds. Simply adding them doesn't seem
      * to be anti-collision proofed.
-     * @param l The number to hash and feed to /dev/random
+     * @param number The number to hash and feed to /dev/random
      */
-    private static void toOSrng(long number) {
+    private static void toOSrng(int number) {
         /*
          * If this is the first number we got use it as seed for the internal RNG and exit.
          */
@@ -83,8 +77,8 @@ public class AtomicRNG {
         /*
          * Hash the numbers 2 times with different random seeds and mix the hashes.
          */
-        long out = xxHash.hash(ByteBuffer.wrap(Long.toHexString(number).getBytes()), rand.nextLong());
-        out += xxHash.hash(ByteBuffer.wrap(Long.toHexString(number).getBytes()), rand.nextLong());
+        long out = xxHash.hash(ByteBuffer.wrap(Integer.toHexString(number).getBytes()), rand.nextLong());
+        out += xxHash.hash(ByteBuffer.wrap(Integer.toHexString(number).getBytes()), rand.nextLong());
         hashCount += 2;
         /*
          * From time to time use the result to re-seed the internal RNG and exit.
@@ -339,7 +333,6 @@ public class AtomicRNG {
         Font font = new Font("Arial Black", Font.PLAIN, 18);
         long lastFound = System.currentTimeMillis();
         long lastSlice = lastFound;
-        boolean firstRun = true;
         /*
          * All right, let's enter the matrix, eh, the main loop I mean...
          */
@@ -385,7 +378,7 @@ public class AtomicRNG {
                      * The width is static, so if it's zero we never asked for it and other infos.
                      * Let's do that.
                      */
-                    if(firstRun) {
+                    if(width == 0) {
                         width = img.width();
                         height = img.height();
                         /*
@@ -400,8 +393,6 @@ public class AtomicRNG {
                                     statImg.setRGB(x, y, Color.RED.getRGB());
                             canvasFrame.setCanvasSize(statWidth, height);
                         }
-                        if(experimentalFilter)
-                            pixelmap = new Pixelstorage[width][height];
 /*                        videoOut = new FFmpegFrameRecorder("~/Private/AtomicRNG.mp4",  statWidth, height);
                         videoOut.setVideoCodec(13);
                         videoOut.setFormat("mp4");
@@ -418,7 +409,6 @@ public class AtomicRNG {
                     int rrgb, red, green, blue;
                     Color color;
                     boolean impact = false, active;
-                    Pixelstorage ps;
                     for(int y = 0; y < height; y++) {
                         for(int x = 0; x < width; x++) {
                             /*
@@ -438,23 +428,25 @@ public class AtomicRNG {
                              * Filter each color channel for noise.
                              */
                             if(experimentalFilter) {
-                                if(firstRun)
-                                    pixelmap[x][y] = new Pixelstorage(rgb, filterRGB);
-                                ps = pixelmap[x][y];
-                                if(!ps.update(rgb).active) {
+                                active = false;
+                                for(int i = 0; i < 3; i++) {
+                                    if(rgb[i] > filterRGB[i] + filterS) {
+                                        active = true;
+                                        break;
+                                    }
+                                }
+                                if(!active) {
                                     /*
-                                     * If there's no data paint a black pixel on the filtered image and go to the next pixel.
+                                     * Use the noise to adjust the filter.
+                                     */
+                                    adjustFilter(rgb);
+                                    /*
+                                     * Paint a black pixel on the filtered image and go to the next pixel.
                                      */
                                     if(!quiet)
                                         statImg.setRGB(statXoffset + x, y, black);
                                     continue;
                                 }
-                                toOSrng(ps.getFlashTimeTill(start));
-                                toOSrng(ps.power[0]);
-                                toOSrng(x);
-                                toOSrng(ps.power[1]);
-                                toOSrng(y);
-                                toOSrng(ps.power[2]);
                             } else {
                                 if(!(red > filter || green > filter || blue > filter)) {
                                     /*
@@ -464,11 +456,6 @@ public class AtomicRNG {
                                         statImg.setRGB(statXoffset + x, y, black);
                                     continue;
                                 }
-                                toOSrng(red);
-                                toOSrng(x);
-                                toOSrng(green);
-                                toOSrng(y);
-                                toOSrng(blue);
                             }
                             /*
                              * If there's data copy the pixel to the filtered image.
@@ -479,6 +466,15 @@ public class AtomicRNG {
                              * Register the data.
                              */
                             impact = true;
+                            /*
+                             * Feed it to /dev/random
+                             */
+                     //       System.out.println("Impact! X/Y: "+x+"/"+y+" | R/G/B: "+red+"/"+green+"/"+blue+" | brightness: "+b+" ("+sb+")");
+                            toOSrng(red);
+                            toOSrng(x);
+                            toOSrng(green);
+                            toOSrng(y);
+                            toOSrng(blue);
                         }
                     }
                     /*
