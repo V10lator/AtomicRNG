@@ -310,10 +310,7 @@ public class AtomicRNG {
         String title = null;
         CanvasFrame canvasFrame = null;
         if(!quiet) {
-            if(experimentalFilter)
-                title = "AtomicRNG v"+version+" | FPS: X.X | Numbers/sec: Y.Y (Z.Z hashes/sec) | Filter: X/Y/Z";
-            else
-                title = "AtomicRNG v"+version+" | FPS: X.X | Numbers/sec: Y.Y (Z.Z hashes/sec)";
+            title = "AtomicRNG v"+version+" | FPS: X.X | Numbers/sec: Y.Y (Z.Z hashes/sec)";
             canvasFrame = new CanvasFrame(title);
             canvasFrame.setDefaultCloseOperation(CanvasFrame.EXIT_ON_CLOSE);
         }
