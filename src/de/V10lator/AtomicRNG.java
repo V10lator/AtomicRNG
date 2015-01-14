@@ -41,9 +41,9 @@ public class AtomicRNG {
     private static OpenCVFrameGrabber atomicRNGDevice;
     private static FileWriter osRNG = null;
     private static String version;
-    private static final int filter = 16;
-    private static final int filterRGB[] = {24, 24, 24};
-    private static final int filterS = 8;
+    private static final int filter = 32;
+    private static final int filterRGB[] = {16, 16, 16};
+    private static final int filterS = 32;
     
     private static Random rand = null;
     private static int hashCount = 0;
