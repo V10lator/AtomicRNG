@@ -188,8 +188,8 @@ public class AtomicRNG {
     private static void adjustFilter(int[] rgb) {
         for(int i = 0; i < 3; i++) {
             if(filterRGB[i] < rgb[i])
-                filterRGB[i] += (rgb[i] - filterRGB[i]) / 2;
-            else if(rand.nextInt(100) < 10)
+                filterRGB[i] = rgb[i];
+            else if(rand.nextInt(100) < 1)
                 filterRGB[i] -= (filterRGB[i] - rgb[i]) / 2;
         }
     }
