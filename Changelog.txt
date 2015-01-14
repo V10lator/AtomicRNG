@@ -1,5 +1,12 @@
 Changelog:
 
+0.14:
+	- Bugfixes.
+	- New experimental dynamic filter.
+	- Better pixel highlighting on the filtered image.
+	- Use more randomness internally to reduce hash collisions even more.
+	- FPS independent Alpha Radiation Visualizer device init for higher compatibility.
+
 0.13:
 	- Small fixes.
 
