@@ -431,9 +431,11 @@ public class AtomicRNG {
                                 active = false;
                                 for(int i = 0; i < 3; i++) {
                                     if(rgb[i] > filterRGB[i] + filterS) {
+                                        rgb[i] -= filterRGB[i] + filterS;
                                         active = true;
                                         break;
-                                    }
+                                    } else
+                                        rgb[i] = -1;
                                 }
                                 if(!active) {
                                     /*
