@@ -42,6 +42,9 @@ public class AtomicRNG {
     private static FileWriter osRNG = null;
     private static String version;
     private static final int filter = 16;
+    private static final int filterRGB[] = {16, 16, 16};
+    private static final int filterS = 3;
+    
     private static Random rand = null;
     private static int hashCount = 0;
     private static long numCount = 0;
@@ -179,6 +182,19 @@ public class AtomicRNG {
     }
     
     /**
+     * This adjust the filter to the new RGB values of a pixel.
+     * @param rgb The red, green and blue values.
+     */
+    private static void adjustFilter(int[] rgb) {
+        for(int i = 0; i < 3; i++) {
+            if(filterRGB[i] < rgb[i])
+                filterRGB[i] += (rgb[i] - filterRGB[i]) / 2;
+            else
+                filterRGB[i] -= (filterRGB[i] - rgb[i]) / 2;
+        }
+    }
+    
+    /**
      * The main function called by the JVM.<br>
      * Most of the action happens in here.
      * @param args
@@ -211,20 +227,20 @@ public class AtomicRNG {
         /*
          * Parse commandline arguments.
          */
-        boolean quiet = false;//, experimentalFilter = false;
+        boolean quiet = false, experimentalFilter = false;
         for(String arg: args) {
             switch(arg) {
                 case("-q"):
                     quiet = true;
                     break;
-/*                case("-ef"):
+                case("-ef"):
                     experimentalFilter = true;
                     System.out.println("WARNING: Experimental noise filter activated!"+System.lineSeparator());
-                    break;*/
+                    break;
                 case "-h":
                     System.out.println("Arguments:"+System.lineSeparator()+
                             " -q  : Be quiet."+System.lineSeparator()+
-//                            " -ef : Enable experimental filter"+System.lineSeparator()+
+                            " -ef : Enable experimental filter"+System.lineSeparator()+
                             " -h  : Show this help."+System.lineSeparator());
                     return;
                 default:
@@ -383,37 +399,63 @@ public class AtomicRNG {
                      * Wrap the frame to a Java BufferedImage and parse it pixel by pixel.
                      */
                     BufferedImage bImg = img.getBufferedImage();
-                    int rgb, red, green, blue;
+                    int[] rgb = new int[3];
+                    int rrgb, red, green, blue;
                     Color color;
-                    boolean impact = false;
+                    boolean impact = false, active;
                     for(int y = 0; y < height; y++) {
                         for(int x = 0; x < width; x++) {
                             /*
                              * Get the pixels color and copy it to the windows raw image.
                              */
-                            rgb = bImg.getRGB(x, y);
+                            rrgb = bImg.getRGB(x, y);
                             if(!quiet)
-                                statImg.setRGB(x, y, rgb);
-                            color = new Color(rgb);
+                                statImg.setRGB(x, y, rrgb);
+                            color = new Color(rrgb);
                             red = color.getRed();
                             green = color.getGreen();
                             blue = color.getBlue();
+                            rgb[0] = red;
+                            rgb[1] = green;
+                            rgb[2] = blue;
                             /*
                              * Filter each color channel for noise.
                              */
-                            if(!(red > filter || green > filter || blue > filter)) {
-                                /*
-                                 * If there's no data paint a black pixel on the filtered image and go to the next pixel.
-                                 */
-                                if(!quiet)
-                                    statImg.setRGB(statXoffset + x, y, black);
-                                continue;
+                            if(experimentalFilter) {
+                                active = false;
+                                for(int i = 0; i < 3; i++) {
+                                    if(rgb[i] > filterRGB[i] + filterS) {
+                                        active = true;
+                                        break;
+                                    }
+                                }
+                                if(!active) {
+                                    /*
+                                     * Use the noise to adjust the filter.
+                                     */
+                                    adjustFilter(rgb);
+                                    /*
+                                     * Paint a black pixel on the filtered image and go to the next pixel.
+                                     */
+                                    if(!quiet)
+                                        statImg.setRGB(statXoffset + x, y, black);
+                                    continue;
+                                }
+                            } else {
+                                if(!(red > filter || green > filter || blue > filter)) {
+                                    /*
+                                     * If there's no data paint a black pixel on the filtered image and go to the next pixel.
+                                     */
+                                    if(!quiet)
+                                        statImg.setRGB(statXoffset + x, y, black);
+                                    continue;
+                                }
                             }
                             /*
                              * If there's data copy the pixel to the filtered image.
                              */
                             if(!quiet)
-                                statImg.setRGB(statXoffset + x, y, rgb);
+                                statImg.setRGB(statXoffset + x, y, rrgb);
                             /*
                              * Register the data.
                              */
