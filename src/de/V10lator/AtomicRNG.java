@@ -82,7 +82,7 @@ public class AtomicRNG {
         int r = rand.nextInt(100);
         if(r < 34)
             out += number;
-        else if(r < 66) {
+        else if(r < 67) {
             if(out < number) {
                 number -= out;
                 out = number;
