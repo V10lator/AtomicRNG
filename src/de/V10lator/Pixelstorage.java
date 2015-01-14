@@ -7,7 +7,6 @@ class Pixelstorage {
     private final short cooldown[] = { 0, 0, 0 };
     private long started = 0L;
     boolean active = false;
-    private boolean tick = true;
     
     Pixelstorage(int[] rgb, int[] maxRGB) {
         this.maxRGB = maxRGB;
@@ -15,7 +14,6 @@ class Pixelstorage {
     }
     
     Pixelstorage update(int rgb[]) {
-        active = false;
         for(int i = 0; i < 3; i++) {
             if(maxRGB[i] < rgb[i]) {
                 if(cooldown[i] == 0) {
@@ -36,12 +34,10 @@ class Pixelstorage {
                     active = true;
                     lastRGB[i] = rgb[i];
                     cooldown[i] = 0;
-                } else
-                    if(tick)
-                        maxRGB[i]--;
+                }
             }
         }
-        tick = !tick;
+        active = false;
         return this;
     }
     
