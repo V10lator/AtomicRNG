@@ -49,14 +49,16 @@ public class AtomicRNG {
     
     private static void toOSrng(int number) {
         if(rand == null || (rand.nextBoolean() && rand.nextBoolean() && rand.nextBoolean())) {
-            if(rand == null)
-                rand = new Random();
-            rand.setSeed(System.currentTimeMillis() * number);
+            rand = new Random(System.currentTimeMillis() * number);
             return;
         }
         long out = xxHash.hash(ByteBuffer.wrap(Integer.toHexString(number).getBytes()), rand.nextLong());
         out += xxHash.hash(ByteBuffer.wrap(Integer.toHexString(number).getBytes()), rand.nextLong());
         hashCount += 2;
+        if(rand.nextBoolean() && rand.nextBoolean() && rand.nextBoolean()) {
+            rand.setSeed(out);
+            return;
+        }
         try {
             String ret = Long.toBinaryString(out);
             osRNG.write(ret);
