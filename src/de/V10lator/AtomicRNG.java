@@ -268,7 +268,7 @@ public class AtomicRNG {
         String title = null;
         CanvasFrame canvasFrame = null;
         if(!quiet) {
-            title = "AtomicRNG v"+version+" LiveView | FPS: X.X | Numbers/sec: Y.Y (Z.Z hashes/sec)";
+            title = "AtomicRNG v"+version+" | FPS: X.X | Numbers/sec: Y.Y (Z.Z hashes/sec)";
             canvasFrame = new CanvasFrame(title);
             canvasFrame.setDefaultCloseOperation(CanvasFrame.EXIT_ON_CLOSE);
         }
@@ -344,7 +344,7 @@ public class AtomicRNG {
                                     statImg.setRGB(x, y, Color.RED.getRGB());
                             canvasFrame.setCanvasSize(statWidth, height);
                         }
-/*                        videoOut = new FFmpegFrameRecorder("~/Private/AtomicRNG-LiveView.mp4",  statWidth, height);
+/*                        videoOut = new FFmpegFrameRecorder("~/Private/AtomicRNG.mp4",  statWidth, height);
                         videoOut.setVideoCodec(13);
                         videoOut.setFormat("mp4");
                         videoOut.setPixelFormat(0); // Workaround for java.lang.NoClassDefFoundError: Could not initialize class org.bytedeco.javacpp.avcodec
