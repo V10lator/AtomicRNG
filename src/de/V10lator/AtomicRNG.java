@@ -51,6 +51,11 @@ public class AtomicRNG {
     private static PixelGroup[][] lastPixel;
     private static FFmpegFrameRecorder videoOut = null;
     
+    private static int height = 0;
+    private static int width = 0;
+    private static int statXoffset = 0;
+    private static int statWidth = 0;
+    
     /**
      * This hashes the number with a hashing algorithm based on xxHash:<br>
      * First the number is hashed with a random seed. After that it's
@@ -143,7 +148,8 @@ public class AtomicRNG {
      * This blocks till the lock could be aquired!
      * @param aggressive This should normally be false as it needs way more CPU power.
      */
-    private static void getLock(boolean aggressive) {
+    private static boolean getLock(boolean aggressive) {
+        long c = 0;
         while(!lock.compareAndSet(false, true)) {
             if(!aggressive) {
                 try {
@@ -151,8 +157,11 @@ public class AtomicRNG {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
+            } else if(++c > 1000000000L) {
+                return false; //TODO: Danger
             }
         }
+        return true;
     }
     
     /**
@@ -178,15 +187,9 @@ public class AtomicRNG {
                     e.printStackTrace();
                 }
             }
-            if(videoOut != null) {
-                try {
-                    videoOut.stop();
-                    videoOut.release();
-                } catch (org.bytedeco.javacv.FrameRecorder.Exception e) {
-                    e.printStackTrace();
-                }
-            }
             lock.set(false);
+            if(videoOut != null)
+                toggleRecording();
             try {
                 Thread.sleep(20L);
             } catch (InterruptedException e) {
@@ -194,6 +197,32 @@ public class AtomicRNG {
             }
             System.out.println("done!");
         }
+    }
+    
+    static void toggleRecording() {
+        getLock(false);
+        try {
+            if(videoOut == null) {
+                videoOut = new FFmpegFrameRecorder("AtomicRNG.mkv", statWidth, height);
+                videoOut.setVideoCodec(avcodec.AV_CODEC_ID_H264);
+                videoOut.setAudioCodec(avcodec.AV_CODEC_ID_NONE);
+                videoOut.setFormat("mp4");
+                videoOut.setPixelFormat(avutil.AV_PIX_FMT_YUV420P);
+                videoOut.setFrameRate(9); //TODO: Don't hardcode.
+                //videoOut.setVideoBitrate(10 * 1024 * 1024);
+                //videoOut.setVideoQuality(1.0d);
+                videoOut.start();
+            } else {
+                videoOut.stop();
+                videoOut.release();
+                videoOut = null;
+            }
+        } catch (org.bytedeco.javacv.FrameRecorder.Exception e) {
+            lock.set(false);
+            e.printStackTrace();
+            System.exit(1);
+        }
+        lock.set(false);
     }
     
     /**
@@ -230,7 +259,7 @@ public class AtomicRNG {
         /*
          * Parse commandline arguments.
          */
-        boolean quiet = false, experimentalFilter = false, video = false;
+        boolean quiet = false, experimentalFilter = false;
         for(String arg: args) {
             switch(arg) {
                 case("-q"):
@@ -239,10 +268,6 @@ public class AtomicRNG {
                 case("-ef"):
                     experimentalFilter = true;
                     System.out.println("WARNING: Experimental noise filter activated!"+System.lineSeparator());
-                    break;
-                case("-v"):
-                    video = true;
-                    System.out.println("WARNING: Video recording activated!"+System.lineSeparator());
                     break;
                 case "-h":
                     System.out.println("Arguments:"+System.lineSeparator()+
@@ -322,6 +347,7 @@ public class AtomicRNG {
             title = "AtomicRNG v"+version+" | FPS: X.X | Numbers/sec: Y.Y (Z.Z hashes/sec)";
             canvasFrame = new CanvasFrame(title);
             canvasFrame.setDefaultCloseOperation(CanvasFrame.EXIT_ON_CLOSE);
+            canvasFrame.getCanvas().addMouseListener(new AtomicMouseListener());
         }
         
         /*
@@ -333,7 +359,7 @@ public class AtomicRNG {
         /*
          * A few Variables we'll need inside of the main loop.
          */
-        int fpsCount = 0, width = 0, statXoffset = 0, height = 0, strength,
+        int fpsCount = 0, strength,
                 pixelGroupX, pixelGroupY, lastPixelGroupX = -1, lastPixelGroupY = -1;
         int black = Color.BLACK.getRGB();
         int white = Color.WHITE.getRGB();
@@ -362,12 +388,6 @@ public class AtomicRNG {
                      * First get the start time of that loop run.
                      */
                     long start = System.currentTimeMillis();
-                    if(video && start - realStart > 60000L && videoOut != null) {
-                        videoOut.stop();
-                        videoOut.release();
-                        videoOut = null;
-                        video = false;
-                    }
                     
                     if(!quiet)
                         fpsCount++;
@@ -403,7 +423,7 @@ public class AtomicRNG {
                         /*
                          * Calculate the needed window size and paint the red line in the middle.
                          */
-                        if(!quiet || video) {
+                        if(!quiet) {
                             statXoffset = width + 2;
                             int statWidth = statXoffset + width;
                             statImg = new BufferedImage(statWidth, height, BufferedImage.TYPE_INT_RGB);
@@ -412,21 +432,9 @@ public class AtomicRNG {
                                     statImg.setRGB(x, y, Color.RED.getRGB());
                             if(!quiet)
                                 canvasFrame.setCanvasSize(statWidth, height);
-                            if(video) {
-                                getLock(false);
-                                videoOut = new FFmpegFrameRecorder("AtomicRNG.mp4",  statWidth, height);
-                                videoOut.setVideoCodec(avcodec.AV_CODEC_ID_H264);
-                                videoOut.setFormat("mp4");
-                                videoOut.setPixelFormat(avutil.AV_PIX_FMT_YUV420P);
-                                videoOut.setFrameRate(9); //TODO: Don't hardcode.
-                                //videoOut.setVideoBitrate(10 * 1024 * 1024);
-                                //videoOut.setVideoQuality(1.0d);
-                                videoOut.start();
-                                lock.set(false);
-                            }
-                            
                         }
                     }
+                    
                     /*
                      * Wrap the frame to a Java BufferedImage and parse it pixel by pixel.
                      */
@@ -441,7 +449,7 @@ public class AtomicRNG {
                              * Get the pixels color and copy it to the windows raw image.
                              */
                             rrgb = bImg.getRGB(x, y);
-                            if(!quiet|| video)
+                            if(!quiet)
                                 statImg.setRGB(x, y, rrgb);
                             color = new Color(rrgb);
                             red = color.getRed();
@@ -463,7 +471,7 @@ public class AtomicRNG {
                                 }
                                 strength = pixelGroup.getStrength(rgb);
                                 if(strength == 0) {
-                                    if(!quiet || video)
+                                    if(!quiet)
                                         statImg.setRGB(statXoffset + x, y, black);
                                     continue;
                                 }
@@ -479,7 +487,7 @@ public class AtomicRNG {
                                     /*
                                      * If there's no data paint a black pixel on the filtered image and go to the next pixel.
                                      */
-                                    if(!quiet || video)
+                                    if(!quiet)
                                         statImg.setRGB(statXoffset + x, y, black);
                                     continue;
                                 }
@@ -495,7 +503,7 @@ public class AtomicRNG {
                             /*
                              * If there's data highlight the pixel on the filtered image.
                              */
-                            if(!quiet || video)
+                            if(!quiet)
                                 statImg.setRGB(statXoffset + x, y, white);
                             /*
                              * Register the data.
@@ -513,21 +521,22 @@ public class AtomicRNG {
                     /*
                      * Write the yellow, transparent text onto the window and update it.
                      */
-                    if(!quiet || video) {
+                    if(!quiet) {
                         Graphics graphics = statImg.getGraphics();
                         graphics.setColor(yellow);
                         graphics.setFont(font);
                         graphics.drawString("Raw", width / 2 - 25, 25);
                         graphics.drawString("Filtered", statXoffset + (width / 2 - 50), 25);
                         
-                        if(video) {
+                        graphics.setColor(Color.RED);
+                        if(videoOut != null) {
                             getLock(false);
                             videoOut.setTimestamp(start - realStart);
                             videoOut.record(IplImage.createFrom(statImg));
                             lock.set(false);
-                            graphics.setColor(Color.RED);
+                            graphics.fillOval(statXoffset + width - 25, height - 25, 20, 20);
+                        } else
                             graphics.drawOval(statXoffset + width - 25, height - 25, 20, 20);
-                        }
                         if(!quiet)
                             canvasFrame.showImage(statImg);
                     }
@@ -546,5 +555,12 @@ public class AtomicRNG {
                 Thread.sleep(2L);
             } catch (InterruptedException e) {}
         }
+    }
+    
+    static boolean isVideoButton(int x, int y) {
+        int vX = statXoffset + width - 25;
+        int vY = height - 25;
+        return x >= vX && x <= vX + 20 &&
+                y >= vY && y <= vY + 20;
     }
 }
