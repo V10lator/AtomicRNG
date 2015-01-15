@@ -402,7 +402,7 @@ public class AtomicRNG {
                     if(firstRun) {
                         width = img.width();
                         height = img.height();
-                        lastPixel = new PixelGroup[width / 32][height / 32];
+                        lastPixel = new PixelGroup[width >> 5][height >> 5];
                         /*
                          * Calculate the needed window size and paint the red line in the middle.
                          */
@@ -457,12 +457,11 @@ public class AtomicRNG {
                              * Filter each color channel for noise.
                              */
                             if(experimentalFilter) {
-                                pixelGroupX = x / 32;
-                                pixelGroupY = y / 32;
+                                pixelGroupX = x >> 5;
+                                pixelGroupY = y >> 5;
                                 if(pixelGroupY != lastPixelGroupX || pixelGroupY != lastPixelGroupY) {
-                                    if(firstRun) {
+                                    if(firstRun)
                                         lastPixel[pixelGroupX][pixelGroupY] = new PixelGroup(filter);
-                                    }
                                     pixelGroup = lastPixel[pixelGroupX][pixelGroupY];
                                 }
                                 strength = pixelGroup.getStrength(rgb);
