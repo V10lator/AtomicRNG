@@ -248,7 +248,7 @@ public class AtomicRNG {
                     System.out.println("Arguments:"+System.lineSeparator()+
                             " -q  : Be quiet."+System.lineSeparator()+
                             " -ef : Enable experimental filter."+System.lineSeparator()+
-                            " -ef : Enable video recorder."+System.lineSeparator()+
+                            " -v  : Enable video recorder."+System.lineSeparator()+
                             " -h  : Show this help."+System.lineSeparator());
                     return;
                 default:
