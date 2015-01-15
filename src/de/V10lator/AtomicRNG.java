@@ -82,6 +82,7 @@ public class AtomicRNG {
          */
         ByteBuffer numberBuffer = ByteBuffer.wrap(Long.toHexString(number).getBytes());
         long out = xxHash.hash(numberBuffer, rand.nextLong());
+        numberBuffer.flip();
         number = xxHash.hash(numberBuffer, rand.nextLong());
         int r = rand.nextInt(100);
         if(r < 34)
