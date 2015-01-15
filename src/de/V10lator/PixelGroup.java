@@ -21,8 +21,8 @@ class PixelGroup {
                     ret += bgr[i] - this.bgr[i];
                 } else
                     adjust[i] = bgr[i];
-            } else if(AtomicRNG.rand.nextInt(1000) < 1)
-                adjust[i] = this.bgr[i] - ((this.bgr[i] - bgr[i]) / 4);
+            } else if(AtomicRNG.rand.nextInt(10000) < 5)
+                adjust[i] = this.bgr[i] - ((this.bgr[i] - bgr[i]) / 8);
                 
         }
         if(!active) { // Update filter
