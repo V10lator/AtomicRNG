@@ -24,6 +24,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -56,7 +59,7 @@ public class AtomicRNG {
     private static int width = 0;
     private static int statXoffset = 0;
     private static int statWidth = 0;
-    
+
     static boolean firstRun = true;
 
     /**
@@ -241,6 +244,59 @@ public class AtomicRNG {
             System.exit(1);
         }
         lock.set(false);
+    }
+
+    private static ArrayList<Integer> getOrCreate(int key, HashMap<Integer, ArrayList<Integer>> map) {
+        ArrayList<Integer> list = map.get(key);
+        if(list == null) {
+            list = new ArrayList<Integer>();
+            map.put(key, list);
+        }
+        return list;
+    }
+
+    private static Pixel filter(int x, int y, ByteBuffer buffer, int wS, int nC, HashMap<Integer, ArrayList<Integer>> ignore, Pixel pixel) {
+        int index = (y * wS) + (x * nC);
+        int[] bgr = new int[3];
+        for(int i = 0; i < 3; i++)
+            bgr[i] = buffer.get(index + i) & 0xFF;
+
+            PixelGroup pixelGroup;
+            if(firstRun)
+                lastPixel[x >> 5][y >> 5] = new PixelGroup(filter);
+            pixelGroup = lastPixel[x >> 5][y >> 5];
+            int strength = pixelGroup.getStrength(bgr);
+            if(strength == 0 || firstRun)
+                return pixel;
+            if(pixel == null)
+                pixel = new Pixel(x, y, strength);
+            else
+                pixel.charge(x, y, strength);
+            getOrCreate(y, ignore).add(x);
+            raytrace(x, y, buffer, wS, nC, ignore, pixel);
+            return pixel;
+    }
+
+    private static void raytrace(int x, int y, ByteBuffer buffer, int wS, int nC, HashMap<Integer, ArrayList<Integer>> ignore, Pixel pixel) {
+        ArrayList<Integer> yList;
+        x -= 1;
+        y -= 1;
+        for(int ym = y; ym < y + 3; ym++) {
+            if(ym < 0 || ym >= height)
+                continue;
+            yList = getOrCreate(ym, ignore);
+            for(int xm = x; xm < x + 3; xm++) {
+                if(xm < 0 || xm >= width)
+                    continue;
+                if(!yList.contains(xm))
+                    filter(xm, ym, buffer, wS, nC, ignore, pixel);
+            }
+        }
+    }
+    
+    private static void paintCross(Graphics g, int x, int y) {
+        g.drawLine(x - 5, y - 5, x + 5, y + 5);
+        g.drawLine(x + 5, y - 5, x - 5, y + 5);
     }
 
     /**
@@ -452,68 +508,66 @@ public class AtomicRNG {
                         statXoffset = width + 2;
                         statWidth = statXoffset + width;
                         statImg = new BufferedImage(statWidth, height, BufferedImage.TYPE_3BYTE_BGR);
-                        for(int x = width + 1; x < statXoffset; x++)
+                        for(int x = width; x <= statXoffset; x++)
                             for(int y = 0; y < height; y++)
                                 statImg.setRGB(x, y, Color.RED.getRGB());
                         if(!quiet)
                             canvasFrame.setCanvasSize(statWidth, height);
                     }
                 }
+                Graphics graphics = null;
+                if(!quiet) {
+                    graphics = statImg.getGraphics();
+                    graphics.drawImage(img.getBufferedImage(), 0, 0, null);
+                    graphics.setColor(Color.BLACK);
+                    graphics.fillRect(statXoffset, 0, statXoffset + width, height);
+                }
 
                 /*
                  * Wrap the frame to a Java BufferedImage and parse it pixel by pixel.
                  */
                 int[] bgr = new int[3];
-                boolean impact = false;
                 ByteBuffer buffer = img.getByteBuffer();
                 int index;
+                HashMap<Integer, ArrayList<Integer>> ignoreBlocks = new HashMap<Integer, ArrayList<Integer>>();
+                ArrayList<Integer> yList;
+                ArrayList<Pixel> impacts = new ArrayList<Pixel>();
+                Pixel pixel;
                 for(int y = 0; y < height; y++) {
                     for(int x = 0; x < width; x++) {
+                        if(ignoreBlocks.containsKey(y)) {
+                            yList = ignoreBlocks.get(y);
+                            if(yList.contains(x))
+                                continue;
+                        }
+                        pixel = filter(x, y, buffer, img.widthStep(), img.nChannels(), ignoreBlocks, null);
+                        if(pixel != null)
+                            impacts.add(pixel);
+
                         /*
-                         * Get the pixels color and copy it to the windows raw image.
-                         */
-                        index = (y * img.widthStep()) + (x * img.nChannels());
-                        for(int i = 0; i < 3; i++)
-                            bgr[i] = buffer.get(index + i) & 0xFF;
-
-                        if(!quiet)
-                            statImg.setRGB(x, y, new Color(bgr[2], bgr[1], bgr[0]).getRGB());
+                         * If there's data highlight the pixel on the filtered image.
+                         *
+                        if(!impacts.isEmpty()) {
+                            for()
+                                statImg.setRGB(statXoffset + x, y, white);
+                        }
                         /*
-                         * Filter each color channel for noise.
+                         * If we got data on that frame get the ms since this was the case last time and feed it to /dev/random.
                          */
-                        pixelGroupX = x >> 5;
-                        pixelGroupY = y >> 5;
-                if(pixelGroupY != lastPixelGroupX || pixelGroupY != lastPixelGroupY) {
-                    if(firstRun)
-                        lastPixel[pixelGroupX][pixelGroupY] = new PixelGroup(filter);
-                    pixelGroup = lastPixel[pixelGroupX][pixelGroupY];
-                }
-                strength = pixelGroup.getStrength(bgr);
-                if(strength == 0) {
-                    if(!quiet)
-                        statImg.setRGB(statXoffset + x, y, black);
-                    continue;
-                }
-
-                toOSrng(x);
-                toOSrng(strength);
-                toOSrng(y);
-
-                /*
-                 * If there's data highlight the pixel on the filtered image.
-                 */
-                 if(!quiet)
-                     statImg.setRGB(statXoffset + x, y, white);
-                 /*
-                  * Register the data.
-                  */
-                 impact = true;
                     }
                 }
-                /*
-                 * If we got data on that frame get the ms since this was the case last time and feed it to /dev/random.
-                 */
-                if(impact) {
+                
+                if(!quiet)
+                    graphics.setColor(Color.RED);
+                
+                if(!impacts.isEmpty()) {
+                    for(Pixel pix: impacts) {
+                        toOSrng(pix.x);
+                        toOSrng(pix.power);
+                        toOSrng(pix.y);
+                        if(!quiet)
+                            paintCross(graphics, statXoffset + pix.x, pix.y);
+                    }
                     toOSrng((int)(start - lastFound));
                     lastFound = start;
                 }
@@ -521,7 +575,6 @@ public class AtomicRNG {
                  * Write the yellow, transparent text onto the window and update it.
                  */
                 if(!quiet) {
-                    Graphics graphics = statImg.getGraphics();
                     graphics.setColor(yellow);
                     graphics.setFont(font);
                     graphics.drawString("Raw", width / 2 - 25, 25);
