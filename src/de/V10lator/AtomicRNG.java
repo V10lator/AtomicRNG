@@ -80,8 +80,9 @@ public class AtomicRNG {
         /*
          * Hash the numbers 2 times with different random seeds and mix the hashes randomly.
          */
-        long out = xxHash.hash(ByteBuffer.wrap(Long.toHexString(number).getBytes()), rand.nextLong());
-        number = xxHash.hash(ByteBuffer.wrap(Long.toHexString(number).getBytes()), rand.nextLong());
+        ByteBuffer numberBuffer = ByteBuffer.wrap(Long.toHexString(number).getBytes());
+        long out = xxHash.hash(numberBuffer, rand.nextLong());
+        number = xxHash.hash(numberBuffer, rand.nextLong());
         int r = rand.nextInt(100);
         if(r < 34)
             out += number;
