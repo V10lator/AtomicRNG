@@ -54,6 +54,7 @@ public class AtomicRNG {
 
     private static PixelGroup[][] lastPixel;
     private static FFmpegFrameRecorder videoOut = null;
+    private static float ts = 0.0f;
 
     private static int height = 0;
     private static int width = 0;
@@ -237,6 +238,7 @@ public class AtomicRNG {
             } else {
                 videoOut.stop();
                 videoOut.release();
+                ts = 0.0f;
                 videoOut = null;
             }
         } catch (org.bytedeco.javacv.FrameRecorder.Exception e) {
@@ -441,6 +443,7 @@ public class AtomicRNG {
          */
         int fpsCount = 0, strength,
                 pixelGroupX, pixelGroupY, lastPixelGroupX = -1, lastPixelGroupY = -1;
+        float avgFPS = 0.0f;
         int black = Color.BLACK.getRGB();
         int white = Color.WHITE.getRGB();
         Color yellow = new Color(1.0f, 1.0f, 0.0f, 0.1f);
@@ -483,7 +486,8 @@ public class AtomicRNG {
                      * ...update the windows title with the newest statistics...
                      */
                     if(!quiet) {
-                        canvasFrame.setTitle(title.replaceAll("X\\.X", String.valueOf((float)fpsCount/10.0f)).replaceAll("Y\\.Y", String.valueOf((float)numCount/10.0f)).replaceAll("Z\\.Z", String.valueOf((float)hashCount/10.0f)));
+                        avgFPS = (float)fpsCount/10.0f;
+                        canvasFrame.setTitle(title.replaceAll("X\\.X", String.valueOf(avgFPS)).replaceAll("Y\\.Y", String.valueOf((float)numCount/10.0f)).replaceAll("Z\\.Z", String.valueOf((float)hashCount/10.0f)));
                         numCount = hashCount = fpsCount = 0;
                     }
                     /*
@@ -600,7 +604,8 @@ public class AtomicRNG {
                     getLock(false);
                     if(videoOut != null) {
                         try {
-                            //videoOut.setTimestamp(start - realStart); //TODO: DEBUG!
+                            ts += avgFPS == 0.0f ? start - lastFound : avgFPS;
+                            videoOut.setTimestamp((int) ts); //TODO: DEBUG!
                             videoOut.record(IplImage.createFrom(statImg));
                             lock.set(false);
                         } catch (org.bytedeco.javacv.FrameRecorder.Exception e) {
@@ -616,6 +621,9 @@ public class AtomicRNG {
                     if(!quiet)
                         canvasFrame.showImage(statImg);
                 }
+                
+                if(!impacts.isEmpty())
+                    lastFound = start;
                 /*
                  * Release the resources of the frame.
                  */
