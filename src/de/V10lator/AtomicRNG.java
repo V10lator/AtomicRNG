@@ -26,7 +26,7 @@ import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -61,6 +61,7 @@ public class AtomicRNG {
     private static int statWidth = 0;
 
     static boolean firstRun = true;
+    private static final ArrayList<Pixel> crosses = new ArrayList<Pixel>();
 
     /**
      * This hashes the number with a hashing algorithm based on xxHash:<br>
@@ -255,7 +256,7 @@ public class AtomicRNG {
         return list;
     }
 
-    private static Pixel filter(int x, int y, ByteBuffer buffer, int wS, int nC, HashMap<Integer, ArrayList<Integer>> ignore, Pixel pixel) {
+    private static Pixel filter(int x, int y, long start, ByteBuffer buffer, int wS, int nC, HashMap<Integer, ArrayList<Integer>> ignore, Pixel pixel) {
         int index = (y * wS) + (x * nC);
         int[] bgr = new int[3];
         for(int i = 0; i < 3; i++)
@@ -269,15 +270,15 @@ public class AtomicRNG {
             if(strength == 0 || firstRun)
                 return pixel;
             if(pixel == null)
-                pixel = new Pixel(x, y, strength);
+                pixel = new Pixel(x, y, strength, start);
             else
                 pixel.charge(x, y, strength);
             getOrCreate(y, ignore).add(x);
-            raytrace(x, y, buffer, wS, nC, ignore, pixel);
+            raytrace(x, y, start, buffer, wS, nC, ignore, pixel);
             return pixel;
     }
 
-    private static void raytrace(int x, int y, ByteBuffer buffer, int wS, int nC, HashMap<Integer, ArrayList<Integer>> ignore, Pixel pixel) {
+    private static void raytrace(int x, int y, long start, ByteBuffer buffer, int wS, int nC, HashMap<Integer, ArrayList<Integer>> ignore, Pixel pixel) {
         ArrayList<Integer> yList;
         x -= 1;
         y -= 1;
@@ -289,14 +290,19 @@ public class AtomicRNG {
                 if(xm < 0 || xm >= width)
                     continue;
                 if(!yList.contains(xm))
-                    filter(xm, ym, buffer, wS, nC, ignore, pixel);
+                    filter(xm, ym, start, buffer, wS, nC, ignore, pixel);
             }
         }
     }
     
-    private static void paintCross(Graphics g, int x, int y) {
-        g.drawLine(x - 5, y - 5, x + 5, y + 5);
-        g.drawLine(x + 5, y - 5, x - 5, y + 5);
+    private static Font smallFont = new Font("Arial", Font.PLAIN, 8);
+    private static void paintCross(Graphics g, Pixel pixel) {
+        g.setColor(Color.RED);
+        int x = statXoffset +pixel.x;
+        g.drawLine(x - 5, pixel.y - 5, x + 5, pixel.y + 5);
+        g.drawLine(x + 5, pixel.y - 5, x - 5, pixel.y + 5);
+        g.setFont(smallFont);
+        g.drawString(String.valueOf(pixel.power), x + 6, pixel.y + 4);
     }
 
     /**
@@ -540,7 +546,7 @@ public class AtomicRNG {
                             if(yList.contains(x))
                                 continue;
                         }
-                        pixel = filter(x, y, buffer, img.widthStep(), img.nChannels(), ignoreBlocks, null);
+                        pixel = filter(x, y, start, buffer, img.widthStep(), img.nChannels(), ignoreBlocks, null);
                         if(pixel != null)
                             impacts.add(pixel);
 
@@ -557,19 +563,29 @@ public class AtomicRNG {
                     }
                 }
                 
-                if(!quiet)
-                    graphics.setColor(Color.RED);
-                
                 if(!impacts.isEmpty()) {
                     for(Pixel pix: impacts) {
                         toOSrng(pix.x);
                         toOSrng(pix.power);
                         toOSrng(pix.y);
                         if(!quiet)
-                            paintCross(graphics, statXoffset + pix.x, pix.y);
+                            crosses.add(pix);
                     }
                     toOSrng((int)(start - lastFound));
                     lastFound = start;
+                }
+                
+                if(!quiet) {
+                    Iterator<Pixel> iter = crosses.iterator();
+                    Pixel pix;
+                    while(iter.hasNext()) {
+                        pix = iter.next();
+                        if(start - pix.found > 2000L) {
+                            iter.remove();
+                            continue;
+                        }
+                        paintCross(graphics, pix);
+                    }
                 }
                 /*
                  * Write the yellow, transparent text onto the window and update it.
