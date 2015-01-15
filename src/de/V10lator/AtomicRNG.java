@@ -190,9 +190,11 @@ public class AtomicRNG {
                     e.printStackTrace();
                 }
             }
-            lock.set(false);
-            if(videoOut != null)
+            if(videoOut != null) {
+                lock.set(false);
                 toggleRecording();
+            } else
+                lock.set(false);
             try {
                 Thread.sleep(20L);
             } catch (InterruptedException e) {
@@ -206,13 +208,15 @@ public class AtomicRNG {
         getLock(false);
         try {
             if(videoOut == null) {
-                videoOut = new FFmpegFrameRecorder("AtomicRNG.mkv", statWidth, height);
-                videoOut.setVideoCodec(avcodec.AV_CODEC_ID_H264);
+                System.out.println("Video: "+statWidth+" / "+height);
+                videoOut = new FFmpegFrameRecorder("AtomicRNG.avi", statWidth, height);
+                videoOut.setVideoCodec(avcodec.AV_CODEC_ID_HUFFYUV);
                 videoOut.setAudioCodec(avcodec.AV_CODEC_ID_NONE);
-                videoOut.setFormat("mkv");
+                videoOut.setFormat("avi");
                 videoOut.setPixelFormat(avutil.AV_PIX_FMT_RGB32);
+                //videoOut.setSampleRate(9);
                 videoOut.setFrameRate(9); //TODO: Don't hardcode.
-                //videoOut.setVideoBitrate(10 * 1024 * 1024);
+                videoOut.setVideoBitrate(10 * 1024 * 1024);
                 //videoOut.setVideoQuality(1.0d);
                 videoOut.start();
             } else {
@@ -428,8 +432,8 @@ public class AtomicRNG {
                          */
                         if(!quiet) {
                             statXoffset = width + 2;
-                            int statWidth = statXoffset + width;
-                            statImg = new BufferedImage(statWidth, height, BufferedImage.TYPE_INT_RGB);
+                            statWidth = statXoffset + width;
+                            statImg = new BufferedImage(statWidth, height, BufferedImage.TYPE_3BYTE_BGR);
                             for(int x = width + 1; x < statXoffset; x++)
                                 for(int y = 0; y < height; y++)
                                     statImg.setRGB(x, y, Color.RED.getRGB());
@@ -532,14 +536,22 @@ public class AtomicRNG {
                         graphics.drawString("Filtered", statXoffset + (width / 2 - 50), 25);
                         
                         graphics.setColor(Color.RED);
+                        getLock(false);
                         if(videoOut != null) {
-                            getLock(false);
-                            videoOut.setTimestamp(start - realStart);
-                            videoOut.record(IplImage.createFrom(statImg));
-                            lock.set(false);
+                            try {
+                                //videoOut.setTimestamp(start - realStart); //TODO: DEBUG!
+                                videoOut.record(IplImage.createFrom(statImg));
+                                lock.set(false);
+                            } catch (org.bytedeco.javacv.FrameRecorder.Exception e) {
+                                lock.set(false);
+                                e.printStackTrace();
+                                toggleRecording();
+                            }
                             graphics.fillOval(statXoffset + width - 25, height - 25, 20, 20);
-                        } else
+                        } else {
+                            lock.set(false);
                             graphics.drawOval(statXoffset + width - 25, height - 25, 20, 20);
+                        }
                         if(!quiet)
                             canvasFrame.showImage(statImg);
                     }

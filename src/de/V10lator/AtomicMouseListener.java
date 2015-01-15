@@ -7,7 +7,6 @@ public class AtomicMouseListener implements MouseListener {
 
     @Override
     public void mouseClicked(MouseEvent event) {
-        System.out.println("Mouse click: "+event.getX()+" / "+event.getY());
         if(AtomicRNG.isVideoButton(event.getX(), event.getY()))
             AtomicRNG.toggleRecording();
     }
