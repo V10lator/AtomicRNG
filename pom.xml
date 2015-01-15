@@ -32,11 +32,11 @@
 			  <relocations>
 				<relocation>
 				  <pattern>org.bytedeco</pattern>
-				  <shadedPattern>libs.org.bytedeco</shadedPattern>
+				  <shadedPattern>org.bytedeco</shadedPattern>
 				</relocation>
 				<relocation>
 				  <pattern>net.jpountz.xxhash</pattern>
-				  <shadedPattern>libs.net.jpountz.xxhash</shadedPattern>
+				  <shadedPattern>net.jpountz.xxhash</shadedPattern>
 				</relocation>
 			  </relocations>
               <transformers>

@@ -31,9 +31,9 @@ import net.jpountz.xxhash.XXHash64;
 import net.jpountz.xxhash.XXHashFactory;
 
 import org.bytedeco.javacv.CanvasFrame;
-//import org.bytedeco.javacv.FFmpegFrameRecorder;
+import org.bytedeco.javacv.FFmpegFrameRecorder;
 import org.bytedeco.javacv.OpenCVFrameGrabber;
-//import org.bytedeco.javacpp.avutil;
+import org.bytedeco.javacpp.avutil;
 import org.bytedeco.javacpp.opencv_core.IplImage;
 
 public class AtomicRNG {
@@ -48,7 +48,7 @@ public class AtomicRNG {
     private static long numCount = 0;
     
     private static PixelGroup[][] lastPixel;
-//    private static FFmpegFrameRecorder videoOut = null;
+    private static FFmpegFrameRecorder videoOut = null;
     
     /**
      * This hashes the number with a hashing algorithm based on xxHash:<br>
@@ -180,15 +180,20 @@ public class AtomicRNG {
                     e.printStackTrace();
                 }
             }
-/*            if(videoOut != null) {
+            if(videoOut != null) {
                 try {
                     videoOut.stop();
                     videoOut.release();
                 } catch (org.bytedeco.javacv.FrameRecorder.Exception e) {
                     e.printStackTrace();
                 }
-            }*/
+            }
             lock.set(false);
+            try {
+                Thread.sleep(20L);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
             System.out.println("done!");
         }
     }
@@ -199,6 +204,8 @@ public class AtomicRNG {
      * @param args
      */
     public static void main(String[] args) {
+        org.bytedeco.javacpp.Loader.load(org.bytedeco.javacpp.avcodec.class); // Workaround for java.lang.NoClassDefFoundError: Could not initialize class org.bytedeco.javacpp.avcodec
+        
         /*
          * Automagically get the version from maven.
          */
@@ -216,7 +223,6 @@ public class AtomicRNG {
             System.exit(1);
         }
         
-        //org.bytedeco.javacpp.Loader.load(org.bytedeco.javacpp.avcodec.class); // Workaround for java.lang.NoClassDefFoundError: Could not initialize class org.bytedeco.javacpp.avcodec
         /*
          * Startup: Print program name and copyright.
          */
@@ -226,7 +232,7 @@ public class AtomicRNG {
         /*
          * Parse commandline arguments.
          */
-        boolean quiet = false, experimentalFilter = false;
+        boolean quiet = false, experimentalFilter = false, video = false;
         for(String arg: args) {
             switch(arg) {
                 case("-q"):
@@ -236,10 +242,15 @@ public class AtomicRNG {
                     experimentalFilter = true;
                     System.out.println("WARNING: Experimental noise filter activated!"+System.lineSeparator());
                     break;
+                case("-v"):
+                    video = true;
+                    System.out.println("WARNING: Video recording activated!"+System.lineSeparator());
+                    break;
                 case "-h":
                     System.out.println("Arguments:"+System.lineSeparator()+
                             " -q  : Be quiet."+System.lineSeparator()+
-                            " -ef : Enable experimental filter"+System.lineSeparator()+
+                            " -ef : Enable experimental filter."+System.lineSeparator()+
+                            " -ef : Enable video recorder."+System.lineSeparator()+
                             " -h  : Show this help."+System.lineSeparator());
                     return;
                 default:
@@ -276,8 +287,8 @@ public class AtomicRNG {
         /*
          *  Throw away the first 10 seconds cause of hardware init.
          */
-        long start = System.currentTimeMillis();
-        while(System.currentTimeMillis() - start < 10000L) {
+        long realStart = System.currentTimeMillis();
+        while(System.currentTimeMillis() - realStart < 10000L) {
             try {
                 atomicRNGDevice.grab().release();
             } catch (org.bytedeco.javacv.FrameGrabber.Exception e) {
@@ -338,41 +349,45 @@ public class AtomicRNG {
         /*
          * All right, let's enter the matrix, eh, the main loop I mean...
          */
+        realStart = System.currentTimeMillis();
         while(true) {
-            /*
-             * First get the start time of that loop run.
-             */
-            start = System.currentTimeMillis();
             /*
              * Catch everything and in case of an error: Restart the ARV device.
              */
             try {
                 /*
-                 * After each ten seconds...
-                 */
-                if(start - lastSlice >= 10000L) {
-                    /*
-                     * ...update the windows title with the newest statistics...
-                     */
-                    if(!quiet) {
-                        canvasFrame.setTitle(title.replaceAll("X\\.X", String.valueOf((float)fpsCount/10.0f)).replaceAll("Y\\.Y", String.valueOf((float)numCount/10.0f)).replaceAll("Z\\.Z", String.valueOf((float)hashCount/10.0f)));
-                        numCount = hashCount = fpsCount = 0;
-                    }
-                    /*
-                     * prepare to count the next 10 seconds and flush /dev/random.
-                     */
-                    lastSlice = start;
-                    getLock(false);
-                    osRNG.flush();
-                    lock.set(false);
-                }
-                /*
                  * Grab a frame from the webcam.
                  */
                 IplImage img = atomicRNGDevice.grab();
                 if(img != null && !img.isNull()) {
+                    /*
+                     * First get the start time of that loop run.
+                     */
+                    long start = System.currentTimeMillis();
+                    
                     if(!quiet)
                         fpsCount++;
+                    
+                    /*
+                     * After each ten seconds...
+                     */
+                    if(start - lastSlice >= 10000L) {
+                        /*
+                         * ...update the windows title with the newest statistics...
+                         */
+                        if(!quiet) {
+                            canvasFrame.setTitle(title.replaceAll("X\\.X", String.valueOf((float)fpsCount/10.0f)).replaceAll("Y\\.Y", String.valueOf((float)numCount/10.0f)).replaceAll("Z\\.Z", String.valueOf((float)hashCount/10.0f)));
+                            numCount = hashCount = fpsCount = 0;
+                        }
+                        /*
+                         * prepare to count the next 10 seconds and flush /dev/random.
+                         */
+                        lastSlice = start;
+                        getLock(false);
+                        osRNG.flush();
+                        lock.set(false);
+                    }
+                    
                     /*
                      * The width is static, so if it's zero we never asked for it and other infos.
                      * Let's do that.
@@ -384,22 +399,28 @@ public class AtomicRNG {
                         /*
                          * Calculate the needed window size and paint the red line in the middle.
                          */
-                        if(!quiet) {
+                        if(!quiet || video) {
                             statXoffset = width + 2;
                             int statWidth = statXoffset + width;
                             statImg = new BufferedImage(statWidth, height, BufferedImage.TYPE_INT_RGB);
                             for(int x = width + 1; x < statXoffset; x++)
                                 for(int y = 0; y < height; y++)
                                     statImg.setRGB(x, y, Color.RED.getRGB());
-                            canvasFrame.setCanvasSize(statWidth, height);
+                            if(!quiet)
+                                canvasFrame.setCanvasSize(statWidth, height);
+                            if(video) {
+                                getLock(false);
+                                videoOut = new FFmpegFrameRecorder("AtomicRNG.mp4",  statWidth, height);
+                                videoOut.setVideoCodec(13);
+                                videoOut.setFormat("mp4");
+                                videoOut.setPixelFormat(avutil.AV_PIX_FMT_YUV420P);
+                                videoOut.setFrameRate(30); //TODO: Don't hardcode.
+                                videoOut.setVideoBitrate(10 * 1024 * 1024);
+                                videoOut.start();
+                                lock.set(false);
+                            }
+                            
                         }
-/*                        videoOut = new FFmpegFrameRecorder("~/Private/AtomicRNG.mp4",  statWidth, height);
-                        videoOut.setVideoCodec(13);
-                        videoOut.setFormat("mp4");
-                        videoOut.setPixelFormat(0); // Workaround for java.lang.NoClassDefFoundError: Could not initialize class org.bytedeco.javacpp.avcodec
-                        videoOut.setFrameRate(9);
-                        videoOut.setVideoBitrate(10 * 1024 * 1024);
-                        videoOut.start();*/
                     }
                     /*
                      * Wrap the frame to a Java BufferedImage and parse it pixel by pixel.
@@ -415,7 +436,7 @@ public class AtomicRNG {
                              * Get the pixels color and copy it to the windows raw image.
                              */
                             rrgb = bImg.getRGB(x, y);
-                            if(!quiet)
+                            if(!quiet|| video)
                                 statImg.setRGB(x, y, rrgb);
                             color = new Color(rrgb);
                             red = color.getRed();
@@ -438,7 +459,7 @@ public class AtomicRNG {
                                 }
                                 strength = pixelGroup.getStrength(rgb);
                                 if(strength == 0) {
-                                    if(!quiet)
+                                    if(!quiet || video)
                                         statImg.setRGB(statXoffset + x, y, black);
                                     continue;
                                 }
@@ -454,7 +475,7 @@ public class AtomicRNG {
                                     /*
                                      * If there's no data paint a black pixel on the filtered image and go to the next pixel.
                                      */
-                                    if(!quiet)
+                                    if(!quiet || video)
                                         statImg.setRGB(statXoffset + x, y, black);
                                     continue;
                                 }
@@ -470,7 +491,7 @@ public class AtomicRNG {
                             /*
                              * If there's data highlight the pixel on the filtered image.
                              */
-                            if(!quiet)
+                            if(!quiet || video)
                                 statImg.setRGB(statXoffset + x, y, white);
                             /*
                              * Register the data.
@@ -488,15 +509,21 @@ public class AtomicRNG {
                     /*
                      * Write the yellow, transparent text onto the window and update it.
                      */
-                    if(!quiet) {
+                    if(!quiet || video) {
                         Graphics graphics = statImg.getGraphics();
                         graphics.setColor(yellow);
                         graphics.setFont(font);
                         graphics.drawString("Raw", width / 2 - 25, 25);
                         graphics.drawString("Filtered", statXoffset + (width / 2 - 50), 25);
                         
-                        canvasFrame.showImage(statImg);
-//                        videoOut.record(IplImage.createFrom(statImg));
+                        if(!quiet)
+                            canvasFrame.showImage(statImg);
+                        if(video) {
+                            getLock(false);
+                            videoOut.setTimestamp(start - realStart);
+                            videoOut.record(IplImage.createFrom(statImg));
+                            lock.set(false);
+                        }
                     }
                     /*
                      * Release the resources of the frame.
