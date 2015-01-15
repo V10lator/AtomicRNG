@@ -54,16 +54,13 @@ public class AtomicRNG {
     /**
      * This hashes the number with a hashing algorithm based on xxHash:<br>
      * First the number is hashed with a random seed. After that it's
-     * hashed again with a new random seed. Both numbers get mixed for
-     * to minimalize collisions and as a result maximum randomness.<br>
+     * hashed again with a new random seed. Both numbers get mixed to
+     * minimalize collisions and as a result maximum randomness.<br>
      * <br>
      * This function doesn't always handle the hash to /dev/random but uses
      * it internally to re-seed the internal RNG (used to get the seeds for
      * xxHash) from time to time. This is to ensure the Java pseudo RNG
-     * produces true random numbers.<br>
-     * <br>
-     * TODO: Better mix-up the two seeds. Simply adding them doesn't seem
-     * to be anti-collision proofed.
+     * produces true random numbers.
      * @param number The number to hash and feed to /dev/random
      */
     private static void toOSrng(long number) {
