@@ -178,7 +178,10 @@ public class AtomicRNG {
             /*
              * Flush and close /dev/random.
              */
-            getLock(true);
+            if(!getLock(true)) { // Assume crash
+                System.err.println("error!");
+                return;          // And do nothing;
+            }
             if(osRNG != null) {
                 try {
                     osRNG.flush();
@@ -206,8 +209,8 @@ public class AtomicRNG {
                 videoOut = new FFmpegFrameRecorder("AtomicRNG.mkv", statWidth, height);
                 videoOut.setVideoCodec(avcodec.AV_CODEC_ID_H264);
                 videoOut.setAudioCodec(avcodec.AV_CODEC_ID_NONE);
-                videoOut.setFormat("mp4");
-                videoOut.setPixelFormat(avutil.AV_PIX_FMT_YUV420P);
+                videoOut.setFormat("mkv");
+                videoOut.setPixelFormat(avutil.AV_PIX_FMT_RGB32);
                 videoOut.setFrameRate(9); //TODO: Don't hardcode.
                 //videoOut.setVideoBitrate(10 * 1024 * 1024);
                 //videoOut.setVideoQuality(1.0d);
