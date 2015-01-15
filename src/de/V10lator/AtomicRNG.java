@@ -33,6 +33,7 @@ import net.jpountz.xxhash.XXHashFactory;
 import org.bytedeco.javacv.CanvasFrame;
 import org.bytedeco.javacv.FFmpegFrameRecorder;
 import org.bytedeco.javacv.OpenCVFrameGrabber;
+import org.bytedeco.javacpp.avcodec;
 import org.bytedeco.javacpp.avutil;
 import org.bytedeco.javacpp.opencv_core.IplImage;
 
@@ -364,6 +365,12 @@ public class AtomicRNG {
                      * First get the start time of that loop run.
                      */
                     long start = System.currentTimeMillis();
+                    if(video && start - realStart > 60000L && videoOut != null) {
+                        videoOut.stop();
+                        videoOut.release();
+                        videoOut = null;
+                        video = false;
+                    }
                     
                     if(!quiet)
                         fpsCount++;
@@ -411,11 +418,12 @@ public class AtomicRNG {
                             if(video) {
                                 getLock(false);
                                 videoOut = new FFmpegFrameRecorder("AtomicRNG.mp4",  statWidth, height);
-                                videoOut.setVideoCodec(13);
+                                videoOut.setVideoCodec(avcodec.AV_CODEC_ID_H264);
                                 videoOut.setFormat("mp4");
                                 videoOut.setPixelFormat(avutil.AV_PIX_FMT_YUV420P);
-                                videoOut.setFrameRate(30); //TODO: Don't hardcode.
-                                videoOut.setVideoBitrate(10 * 1024 * 1024);
+                                videoOut.setFrameRate(9); //TODO: Don't hardcode.
+                                //videoOut.setVideoBitrate(10 * 1024 * 1024);
+                                //videoOut.setVideoQuality(1.0d);
                                 videoOut.start();
                                 lock.set(false);
                             }
@@ -516,14 +524,16 @@ public class AtomicRNG {
                         graphics.drawString("Raw", width / 2 - 25, 25);
                         graphics.drawString("Filtered", statXoffset + (width / 2 - 50), 25);
                         
-                        if(!quiet)
-                            canvasFrame.showImage(statImg);
                         if(video) {
                             getLock(false);
                             videoOut.setTimestamp(start - realStart);
                             videoOut.record(IplImage.createFrom(statImg));
                             lock.set(false);
+                            graphics.setColor(Color.RED);
+                            graphics.drawOval(statXoffset + width - 25, height - 25, 20, 20);
                         }
+                        if(!quiet)
+                            canvasFrame.showImage(statImg);
                     }
                     /*
                      * Release the resources of the frame.
