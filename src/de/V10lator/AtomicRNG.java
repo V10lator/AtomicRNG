@@ -42,20 +42,23 @@ public class AtomicRNG {
     private static OpenCVFrameGrabber atomicRNGDevice;
     private static FileWriter osRNG = null;
     private static String version;
-    private static final int filter = 32;
-    
-    static Random rand = null;
+    private static final int filter = 255;
+
+    static Random rand = new Random();
+    private static boolean randSecure = false;
     private static int hashCount = 0;
     private static long numCount = 0;
-    
+
     private static PixelGroup[][] lastPixel;
     private static FFmpegFrameRecorder videoOut = null;
-    
+
     private static int height = 0;
     private static int width = 0;
     private static int statXoffset = 0;
     private static int statWidth = 0;
     
+    static boolean firstRun = true;
+
     /**
      * This hashes the number with a hashing algorithm based on xxHash:<br>
      * First the number is hashed with a random seed. After that it's
@@ -72,11 +75,12 @@ public class AtomicRNG {
         /*
          * If this is the first number we got use it as seed for the internal RNG and exit.
          */
-        if(rand == null) {
-            rand = new Random(System.currentTimeMillis() * number);
+        if(!randSecure) {
+            rand.setSeed(System.currentTimeMillis() * number);
+            randSecure = true;
             return;
         }
-        
+
         /*
          * Hash the numbers 2 times with different random seeds and mix the hashes randomly.
          */
@@ -95,7 +99,7 @@ public class AtomicRNG {
                 out -= number;
         } else
             out = (out / 2) + (number / 2);
-        
+
         hashCount += 2;
         /*
          * From time to time use the result to re-seed the internal RNG and exit.
@@ -117,7 +121,7 @@ public class AtomicRNG {
         }
         lock.set(false);
     }
-    
+
     /**
      * This restarts the Alpha-Ray-Vistualizer.<br>
      * Normally this should never be used. After 3
@@ -125,7 +129,9 @@ public class AtomicRNG {
      */
     private static void restartAtomicRNGDevice(Exception why) {
         Exception trace = null;
-        for(int i = 0; i < 3; i++) {
+        System.out.print("Restarting ARV device... ");
+        int i;
+        for(i = 0; i < 3; i++) {
             try {
                 atomicRNGDevice.restart();
                 trace = null;
@@ -139,11 +145,14 @@ public class AtomicRNG {
             } catch (InterruptedException e) {}
         }
         if(trace != null) {
+            System.out.println("failed! ("+(i+1)+" tries)");
             trace.printStackTrace();
             System.exit(1);
         }
+        System.out.println("done!");
+        why.printStackTrace();
     }
-    
+
     private static final AtomicBoolean lock = new AtomicBoolean(false);
     /**
      * This is to get the lock.<b>
@@ -165,7 +174,7 @@ public class AtomicRNG {
         }
         return true;
     }
-    
+
     /**
      * Internal class trapped by Runtime.getRuntime().addShutdownHook();<br>
      * <br>
@@ -205,7 +214,7 @@ public class AtomicRNG {
             System.out.println("done!");
         }
     }
-    
+
     static void toggleRecording() {
         getLock(false);
         try {
@@ -233,7 +242,7 @@ public class AtomicRNG {
         }
         lock.set(false);
     }
-    
+
     /**
      * The main function called by the JVM.<br>
      * Most of the action happens in here.
@@ -241,7 +250,7 @@ public class AtomicRNG {
      */
     public static void main(String[] args) {
         org.bytedeco.javacpp.Loader.load(org.bytedeco.javacpp.avcodec.class); // Workaround for java.lang.NoClassDefFoundError: Could not initialize class org.bytedeco.javacpp.avcodec
-        
+
         /*
          * Automagically get the version from maven.
          */
@@ -258,54 +267,54 @@ public class AtomicRNG {
             e.printStackTrace();
             System.exit(1);
         }
-        
+
         /*
          * Startup: Print program name and copyright.
          */
         System.out.println("AtomicRNG v"+version+System.lineSeparator()+
                 "(c) 2015 by Thomas \"V10lator\" Rohloff."+System.lineSeparator());
-        
+
         /*
          * Parse commandline arguments.
          */
-        boolean quiet = false, experimentalFilter = false;
+        boolean quiet = false/*, experimentalFilter = false*/;
         for(String arg: args) {
             switch(arg) {
-                case("-q"):
-                    quiet = true;
-                    break;
-                case("-ef"):
+            case("-q"):
+                quiet = true;
+            break;
+            /*                case("-ef"):
                     experimentalFilter = true;
                     System.out.println("WARNING: Experimental noise filter activated!"+System.lineSeparator());
-                    break;
-                case "-h":
-                    System.out.println("Arguments:"+System.lineSeparator()+
-                            " -q  : Be quiet."+System.lineSeparator()+
-                            " -ef : Enable experimental filter."+System.lineSeparator()+
-                            " -v  : Enable video recorder."+System.lineSeparator()+
-                            " -h  : Show this help."+System.lineSeparator());
-                    return;
-                default:
-                    System.out.println("Unknown argument: "+arg+System.lineSeparator()+System.lineSeparator());
-                    System.exit(1);
+                    break;*/
+            case "-h":
+                System.out.println("Arguments:"+System.lineSeparator()+
+                        " -q  : Be quiet."+System.lineSeparator()+
+                        //                            " -ef : Enable experimental filter."+System.lineSeparator()+
+                        " -v  : Enable video recorder."+System.lineSeparator()+
+                        " -h  : Show this help."+System.lineSeparator());
+                return;
+            default:
+                System.out.println("Unknown argument: "+arg+System.lineSeparator()+System.lineSeparator());
+                System.exit(1);
             }
         }
-        
+
         /*
          * Tell the user we're going to initialize the ARV device.
          */
         System.out.print("Initializing Alpha Ray Visualizer... ");
-        
+
         /*
          * Initialize the fastest available xxHash algorithm.
          */
         xxHash = XXHashFactory.fastestInstance().hash64();
-        
+
         /*
          * Trap Cleanup().run() to be called when the JVM exits.
          */
         Runtime.getRuntime().addShutdownHook(new Cleanup());
-        
+
         /*
          * Open and start the webcam inside of the ARV device.
          */
@@ -315,19 +324,19 @@ public class AtomicRNG {
         } catch(Exception e) {
             restartAtomicRNGDevice(e);
         }
-        
+
         /*
-         *  Throw away the first 10 seconds cause of hardware init.
+         *  Throw away the first 5 seconds cause of hardware init.
          */
         long realStart = System.currentTimeMillis();
-        while(System.currentTimeMillis() - realStart < 10000L) {
+        while(System.currentTimeMillis() - realStart < 5000L) {
             try {
                 atomicRNGDevice.grab().release();
             } catch (org.bytedeco.javacv.FrameGrabber.Exception e) {
                 restartAtomicRNGDevice(e);
             }
         }
-        
+
         /*
          *  Open the Linux RNG and keep it open all the time.
          *  We close it in Cleanup().run().
@@ -346,7 +355,7 @@ public class AtomicRNG {
             System.exit(1);
         }
         lock.set(false);
-        
+
         /*
          * In case we should draw the window initialize it and set its title.
          */
@@ -358,13 +367,13 @@ public class AtomicRNG {
             canvasFrame.setDefaultCloseOperation(CanvasFrame.EXIT_ON_CLOSE);
             canvasFrame.getCanvas().addMouseListener(new AtomicMouseListener());
         }
-        
+
         /*
          * We initialized everything.
          * Tell the user we're ready!
          */
         System.out.println("done!");
-        
+
         /*
          * A few Variables we'll need inside of the main loop.
          */
@@ -377,7 +386,6 @@ public class AtomicRNG {
         Font font = new Font("Arial Black", Font.PLAIN, 18);
         long lastFound = System.currentTimeMillis();
         long lastSlice = lastFound;
-        boolean firstRun = true;
         PixelGroup pixelGroup = null;
         /*
          * All right, let's enter the matrix, eh, the main loop I mean...
@@ -385,186 +393,167 @@ public class AtomicRNG {
         realStart = System.currentTimeMillis();
         while(true) {
             /*
-             * Catch everything and in case of an error: Restart the ARV device.
+             * Grab a frame from the webcam.
              */
+            IplImage img = null;
             try {
                 /*
                  * Grab a frame from the webcam.
                  */
-                IplImage img = atomicRNGDevice.grab();
-                if(img != null && !img.isNull()) {
-                    /*
-                     * First get the start time of that loop run.
-                     */
-                    long start = System.currentTimeMillis();
-                    
-                    if(!quiet)
-                        fpsCount++;
-                    
-                    /*
-                     * After each ten seconds...
-                     */
-                    if(start - lastSlice >= 10000L) {
-                        /*
-                         * ...update the windows title with the newest statistics...
-                         */
-                        if(!quiet) {
-                            canvasFrame.setTitle(title.replaceAll("X\\.X", String.valueOf((float)fpsCount/10.0f)).replaceAll("Y\\.Y", String.valueOf((float)numCount/10.0f)).replaceAll("Z\\.Z", String.valueOf((float)hashCount/10.0f)));
-                            numCount = hashCount = fpsCount = 0;
-                        }
-                        /*
-                         * prepare to count the next 10 seconds and flush /dev/random.
-                         */
-                        lastSlice = start;
-                        getLock(false);
-                        osRNG.flush();
-                        lock.set(false);
-                    }
-                    
-                    /*
-                     * The width is static, so if it's zero we never asked for it and other infos.
-                     * Let's do that.
-                     */
-                    if(firstRun) {
-                        width = img.width();
-                        height = img.height();
-                        lastPixel = new PixelGroup[width >> 5][height >> 5];
-                        /*
-                         * Calculate the needed window size and paint the red line in the middle.
-                         */
-                        if(!quiet) {
-                            statXoffset = width + 2;
-                            statWidth = statXoffset + width;
-                            statImg = new BufferedImage(statWidth, height, BufferedImage.TYPE_3BYTE_BGR);
-                            for(int x = width + 1; x < statXoffset; x++)
-                                for(int y = 0; y < height; y++)
-                                    statImg.setRGB(x, y, Color.RED.getRGB());
-                            if(!quiet)
-                                canvasFrame.setCanvasSize(statWidth, height);
-                        }
-                    }
-                    
-                    /*
-                     * Wrap the frame to a Java BufferedImage and parse it pixel by pixel.
-                     */
-                    BufferedImage bImg = img.getBufferedImage();
-                    int[] rgb = new int[3];
-                    int rrgb, red, green, blue;
-                    Color color;
-                    boolean impact = false;
-                    for(int y = 0; y < height; y++) {
-                        for(int x = 0; x < width; x++) {
-                            /*
-                             * Get the pixels color and copy it to the windows raw image.
-                             */
-                            rrgb = bImg.getRGB(x, y);
-                            if(!quiet)
-                                statImg.setRGB(x, y, rrgb);
-                            color = new Color(rrgb);
-                            red = color.getRed();
-                            green = color.getGreen();
-                            blue = color.getBlue();
-                            rgb[0] = red;
-                            rgb[1] = green;
-                            rgb[2] = blue;
-                            /*
-                             * Filter each color channel for noise.
-                             */
-                            if(experimentalFilter) {
-                                pixelGroupX = x >> 5;
-                                pixelGroupY = y >> 5;
-                                if(pixelGroupY != lastPixelGroupX || pixelGroupY != lastPixelGroupY) {
-                                    if(firstRun)
-                                        lastPixel[pixelGroupX][pixelGroupY] = new PixelGroup(filter);
-                                    pixelGroup = lastPixel[pixelGroupX][pixelGroupY];
-                                }
-                                strength = pixelGroup.getStrength(rgb);
-                                if(strength == 0) {
-                                    if(!quiet)
-                                        statImg.setRGB(statXoffset + x, y, black);
-                                    continue;
-                                }
-                                
-                                toOSrng(x);
-                                toOSrng(strength);
-                                toOSrng(y);
-                            } else {
-                                if(!(red > filter || green > filter || blue > filter)) {
-                                    red = red < filter ? -1 : red - filter;
-                                    green = green < filter ? -1 : green - filter;
-                                    blue = blue < filter ? -1 : blue - filter;
-                                    /*
-                                     * If there's no data paint a black pixel on the filtered image and go to the next pixel.
-                                     */
-                                    if(!quiet)
-                                        statImg.setRGB(statXoffset + x, y, black);
-                                    continue;
-                                }
-                                if(red != -1)
-                                    toOSrng(red);
-                                toOSrng(x);
-                                if(green != -1)
-                                    toOSrng(green);
-                                toOSrng(y);
-                                if(blue != -1)
-                                    toOSrng(blue);
-                            }
-                            /*
-                             * If there's data highlight the pixel on the filtered image.
-                             */
-                            if(!quiet)
-                                statImg.setRGB(statXoffset + x, y, white);
-                            /*
-                             * Register the data.
-                             */
-                            impact = true;
-                        }
-                    }
-                    /*
-                     * If we got data on that frame get the ms since this was the case last time and feed it to /dev/random.
-                     */
-                    if(impact) {
-                        toOSrng((int)(start - lastFound));
-                        lastFound = start;
-                    }
-                    /*
-                     * Write the yellow, transparent text onto the window and update it.
-                     */
-                    if(!quiet) {
-                        Graphics graphics = statImg.getGraphics();
-                        graphics.setColor(yellow);
-                        graphics.setFont(font);
-                        graphics.drawString("Raw", width / 2 - 25, 25);
-                        graphics.drawString("Filtered", statXoffset + (width / 2 - 50), 25);
-                        
-                        graphics.setColor(Color.RED);
-                        getLock(false);
-                        if(videoOut != null) {
-                            try {
-                                //videoOut.setTimestamp(start - realStart); //TODO: DEBUG!
-                                videoOut.record(IplImage.createFrom(statImg));
-                                lock.set(false);
-                            } catch (org.bytedeco.javacv.FrameRecorder.Exception e) {
-                                lock.set(false);
-                                e.printStackTrace();
-                                toggleRecording();
-                            }
-                            graphics.fillOval(statXoffset + width - 25, height - 25, 20, 20);
-                        } else {
-                            lock.set(false);
-                            graphics.drawOval(statXoffset + width - 25, height - 25, 20, 20);
-                        }
-                        if(!quiet)
-                            canvasFrame.showImage(statImg);
-                    }
-                    /*
-                     * Release the resources of the frame.
-                     */
-                    img.release();
-                }
+                img = atomicRNGDevice.grab();
             } catch(Exception e) {
                 restartAtomicRNGDevice(e);
             }
+            if(img != null && !img.isNull()) {
+                /*
+                 * First get the start time of that loop run.
+                 */
+                long start = System.currentTimeMillis();
+
+                if(!quiet)
+                    fpsCount++;
+
+                /*
+                 * After each ten seconds...
+                 */
+                if(start - lastSlice >= 10000L) {
+                    /*
+                     * ...update the windows title with the newest statistics...
+                     */
+                    if(!quiet) {
+                        canvasFrame.setTitle(title.replaceAll("X\\.X", String.valueOf((float)fpsCount/10.0f)).replaceAll("Y\\.Y", String.valueOf((float)numCount/10.0f)).replaceAll("Z\\.Z", String.valueOf((float)hashCount/10.0f)));
+                        numCount = hashCount = fpsCount = 0;
+                    }
+                    /*
+                     * prepare to count the next 10 seconds and flush /dev/random.
+                     */
+                    lastSlice = start;
+                    getLock(false);
+                    try {
+                        osRNG.flush();
+                    } catch (IOException e) {
+                        e.printStackTrace(); //TODO Handle or ignorable?
+                    }
+                    lock.set(false);
+                }
+
+                /*
+                 * The width is static, so if it's zero we never asked for it and other infos.
+                 * Let's do that.
+                 */
+                if(firstRun) {
+                    width = img.width();
+                    height = img.height();
+                    lastPixel = new PixelGroup[width >> 5][height >> 5];
+                    /*
+                     * Calculate the needed window size and paint the red line in the middle.
+                     */
+                    if(!quiet) {
+                        statXoffset = width + 2;
+                        statWidth = statXoffset + width;
+                        statImg = new BufferedImage(statWidth, height, BufferedImage.TYPE_3BYTE_BGR);
+                        for(int x = width + 1; x < statXoffset; x++)
+                            for(int y = 0; y < height; y++)
+                                statImg.setRGB(x, y, Color.RED.getRGB());
+                        if(!quiet)
+                            canvasFrame.setCanvasSize(statWidth, height);
+                    }
+                }
+
+                /*
+                 * Wrap the frame to a Java BufferedImage and parse it pixel by pixel.
+                 */
+                int[] bgr = new int[3];
+                boolean impact = false;
+                ByteBuffer buffer = img.getByteBuffer();
+                int index;
+                for(int y = 0; y < height; y++) {
+                    for(int x = 0; x < width; x++) {
+                        /*
+                         * Get the pixels color and copy it to the windows raw image.
+                         */
+                        index = (y * img.widthStep()) + (x * img.nChannels());
+                        for(int i = 0; i < 3; i++)
+                            bgr[i] = buffer.get(index + i) & 0xFF;
+
+                        if(!quiet)
+                            statImg.setRGB(x, y, new Color(bgr[2], bgr[1], bgr[0]).getRGB());
+                        /*
+                         * Filter each color channel for noise.
+                         */
+                        pixelGroupX = x >> 5;
+                        pixelGroupY = y >> 5;
+                if(pixelGroupY != lastPixelGroupX || pixelGroupY != lastPixelGroupY) {
+                    if(firstRun)
+                        lastPixel[pixelGroupX][pixelGroupY] = new PixelGroup(filter);
+                    pixelGroup = lastPixel[pixelGroupX][pixelGroupY];
+                }
+                strength = pixelGroup.getStrength(bgr);
+                if(strength == 0) {
+                    if(!quiet)
+                        statImg.setRGB(statXoffset + x, y, black);
+                    continue;
+                }
+
+                toOSrng(x);
+                toOSrng(strength);
+                toOSrng(y);
+
+                /*
+                 * If there's data highlight the pixel on the filtered image.
+                 */
+                 if(!quiet)
+                     statImg.setRGB(statXoffset + x, y, white);
+                 /*
+                  * Register the data.
+                  */
+                 impact = true;
+                    }
+                }
+                /*
+                 * If we got data on that frame get the ms since this was the case last time and feed it to /dev/random.
+                 */
+                if(impact) {
+                    toOSrng((int)(start - lastFound));
+                    lastFound = start;
+                }
+                /*
+                 * Write the yellow, transparent text onto the window and update it.
+                 */
+                if(!quiet) {
+                    Graphics graphics = statImg.getGraphics();
+                    graphics.setColor(yellow);
+                    graphics.setFont(font);
+                    graphics.drawString("Raw", width / 2 - 25, 25);
+                    graphics.drawString("Filtered", statXoffset + (width / 2 - 50), 25);
+
+                    graphics.setColor(Color.RED);
+                    getLock(false);
+                    if(videoOut != null) {
+                        try {
+                            //videoOut.setTimestamp(start - realStart); //TODO: DEBUG!
+                            videoOut.record(IplImage.createFrom(statImg));
+                            lock.set(false);
+                        } catch (org.bytedeco.javacv.FrameRecorder.Exception e) {
+                            lock.set(false);
+                            e.printStackTrace();
+                            toggleRecording();
+                        }
+                        graphics.fillOval(statXoffset + width - 25, height - 25, 20, 20);
+                    } else {
+                        lock.set(false);
+                        graphics.drawOval(statXoffset + width - 25, height - 25, 20, 20);
+                    }
+                    if(!quiet)
+                        canvasFrame.showImage(statImg);
+                }
+                /*
+                 * Release the resources of the frame.
+                 */
+                img.release();
+                firstRun = false;
+            }
+
             try {
                 /*
                  * Don't let us burn all CPU in case we're under heavy load.
@@ -573,7 +562,7 @@ public class AtomicRNG {
             } catch (InterruptedException e) {}
         }
     }
-    
+
     static boolean isVideoButton(int x, int y) {
         int vX = statXoffset + width - 25;
         int vY = height - 25;
