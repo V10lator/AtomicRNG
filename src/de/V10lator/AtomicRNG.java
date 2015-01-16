@@ -125,7 +125,6 @@ public class AtomicRNG {
             e.printStackTrace();
         }
         lock.set(false);
-        System.exit(1);
     }
 
     /**
