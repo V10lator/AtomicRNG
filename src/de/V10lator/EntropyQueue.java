@@ -15,7 +15,6 @@ class EntropyQueue extends Thread {
 
     private static final AtomicBoolean lock = new AtomicBoolean(false);
     private static final ArrayList<Pointer> queue = new ArrayList<Pointer>();
-    private static final EntropyQueue instance = new EntropyQueue();
     private static final long maxEntropy;
     private static final Pointer window = new Memory(4L);
     
@@ -36,7 +35,7 @@ class EntropyQueue extends Thread {
                 } catch (IOException e) {}
         }
         maxEntropy = maxEnt;
-        instance.start();
+        new EntropyQueue().start();
     }
     
     private EntropyQueue() {}
@@ -44,32 +43,42 @@ class EntropyQueue extends Thread {
     @Override
     public void run() {
         while(!AtomicRNG.stopped) {
+            try {
+                Thread.sleep(5L);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
             while(!lock.compareAndSet(false, true))
                 try {
                     Thread.sleep(2L);
                 } catch (InterruptedException e) {}
+            if(queue.isEmpty()) {
+                lock.set(false);
+                continue;
+            }
             int ret;
             try {
                 if((ret = LibCwrapper.ioctl(AtomicRNG.getRealFileDescriptor(AtomicRNG.osRNG.getFD()), LibCwrapper.RNDGETENTCNT, window)) != 0) {
                     System.err.println("ioctl RNDGETENTCNT returned "+ret);
                     lock.set(false);
-                    break;
+                    continue;
                 }
             } catch (IOException e) {
                 e.printStackTrace();
-                break;
+                lock.set(false);
+                continue;
             }
             long entropyAvail = window.getInt(0) & 0xffffffffL;
             window.clear(4L);
             long free = maxEntropy - entropyAvail;
             Iterator<Pointer> iter = queue.iterator();
             while(iter.hasNext()) {
+                if(free < 4)
+                    break;
                 if(AtomicRNG.toOSrng(iter.next(), false)) {
                     iter.remove();
                     free -= 4;
                 } else
-                    break;
-                if(free < 4)
                     break;
             }
             lock.set(false);
