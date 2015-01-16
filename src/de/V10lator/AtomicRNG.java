@@ -116,8 +116,7 @@ public class AtomicRNG {
         /*
          * Write the result to /dev/random and update the statistics.
          */
-        String ret = Long.toBinaryString(out);
-        getLock(false);
+        String ret = Long.toHexString(out);
         try {
             osRNG.write(ret);
             numCount += ret.length();
@@ -125,6 +124,7 @@ public class AtomicRNG {
             e.printStackTrace();
         }
         lock.set(false);
+        System.exit(1);
     }
 
     /**
