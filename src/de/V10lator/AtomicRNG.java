@@ -117,6 +117,7 @@ public class AtomicRNG {
          * Write the result to /dev/random and update the statistics.
          */
         String ret = Long.toHexString(out);
+        getLock(false);
         try {
             osRNG.write(ret);
             numCount += ret.length();
