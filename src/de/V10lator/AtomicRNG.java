@@ -23,17 +23,19 @@ import java.io.File;
 import java.io.FileDescriptor;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.FileAttribute;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import net.jpountz.xxhash.XXHash64;
-import net.jpountz.xxhash.XXHashFactory;
+import java.util.jar.JarFile;
 
 import org.bytedeco.javacv.CanvasFrame;
 import org.bytedeco.javacv.FFmpegFrameRecorder;
@@ -46,7 +48,6 @@ import com.sun.jna.Memory;
 import com.sun.jna.Pointer;
 
 public class AtomicRNG {
-    private static XXHash64 xxHash = null;
     private static OpenCVFrameGrabber atomicRNGDevice;
     static FileOutputStream osRNG = null;
     private static String version;
@@ -127,7 +128,8 @@ public class AtomicRNG {
         longBuffers[0].flip();
         ByteBuffer byteBuffer = ByteBuffer.wrap(Long.toHexString(number).getBytes());
         for(int i = 0; i < 2; i++) {
-            longBuffers[i].putLong(xxHash.hash(byteBuffer, rand.nextLong()));
+            longBuffers[i].putLong(LZ4Wrapper.XXH64(byteBuffer.array(), 0, 8, rand.nextLong()));
+           // longBuffers[i].putLong(xxHash.hash(byteBuffer, rand.nextLong()));
             longBuffers[i].flip();
             byteBuffer.flip();
             hashCount++;
@@ -373,11 +375,38 @@ public class AtomicRNG {
          * Tell the user we're going to initialize the ARV device.
          */
         System.out.print("Initializing Alpha Ray Visualizer... ");
-
+        
         /*
-         * Initialize the fastest available xxHash algorithm.
+         * Extract native libraries for use with JNA
          */
-        xxHash = XXHashFactory.fastestInstance().hash64();
+        try {
+            /*
+             * Create tmp dir and register it as JNAs library path.
+             */
+            FileAttribute<?>[] empty = {};
+            Path tmpDir = Files.createTempDirectory("AtomicRNG_", empty);
+            tmpDir.toFile().deleteOnExit();
+            System.setProperty("jna.library.path", tmpDir.toString());
+            
+            tmpDir.toFile().deleteOnExit(); // Delete tmp dir on exit.
+            
+            JarFile file = new JarFile(AtomicRNG.class.getProtectionDomain().getCodeSource().getLocation().getFile()); // Open our jar.
+            
+            /*
+             * Extract liblz4-java.so (xxHash library).
+             */
+            InputStream inStream = file.getInputStream(file.getJarEntry("linux/amd64/liblz4-java.so"));
+            Path lib = tmpDir.resolve("liblz4-java.so");
+            lib.toFile().deleteOnExit();
+            Files.copy(inStream, lib);
+            
+            file.close(); // close jar.
+            
+        } catch (Exception e) {
+            System.err.println("error!");
+            e.printStackTrace();
+            System.exit(1);
+        }
 
         /*
          * Trap Cleanup().run() to be called when the JVM exits.
