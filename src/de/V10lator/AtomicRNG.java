@@ -50,7 +50,6 @@ public class AtomicRNG {
     private static OpenCVFrameGrabber atomicRNGDevice;
     static FileOutputStream osRNG = null;
     private static String version;
-    private static final int filter = 255;
 
     static Random rand = new Random();
     private static boolean randSecure = false;
@@ -396,15 +395,13 @@ public class AtomicRNG {
         }
 
         /*
-         *  Throw away the first 5 seconds cause of hardware init.
+         *  Throw away the first frame cause of hardware init.
+         *  The noise filters will handle the rest.
          */
-        long realStart = System.currentTimeMillis();
-        while(System.currentTimeMillis() - realStart < 5000L) {
-            try {
-                atomicRNGDevice.grab().release();
-            } catch (org.bytedeco.javacv.FrameGrabber.Exception e) {
-                restartAtomicRNGDevice(e);
-            }
+        try {
+            atomicRNGDevice.grab().release();
+        } catch (org.bytedeco.javacv.FrameGrabber.Exception e) {
+            restartAtomicRNGDevice(e);
         }
 
         /*
@@ -461,7 +458,6 @@ public class AtomicRNG {
         /*
          * All right, let's enter the matrix, eh, the main loop I mean...
          */
-        realStart = System.currentTimeMillis();
         while(true) {
             /*
              * Grab a frame from the webcam.
