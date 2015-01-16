@@ -20,9 +20,11 @@ import java.awt.Graphics;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileWriter;
+import java.io.FileDescriptor;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -40,17 +42,20 @@ import org.bytedeco.javacpp.avcodec;
 import org.bytedeco.javacpp.avutil;
 import org.bytedeco.javacpp.opencv_core.IplImage;
 
+import com.sun.jna.Memory;
+import com.sun.jna.Pointer;
+
 public class AtomicRNG {
     private static XXHash64 xxHash = null;
     private static OpenCVFrameGrabber atomicRNGDevice;
-    private static FileWriter osRNG = null;
+    static FileOutputStream osRNG = null;
     private static String version;
     private static final int filter = 255;
 
     static Random rand = new Random();
     private static boolean randSecure = false;
     private static int hashCount = 0;
-    private static long numCount = 0;
+    private static long byteCount = 0;
 
     private static PixelGroup[][] lastPixel;
     private static FFmpegFrameRecorder videoOut = null;
@@ -63,7 +68,37 @@ public class AtomicRNG {
 
     static boolean firstRun = true;
     private static final ArrayList<Pixel> crosses = new ArrayList<Pixel>();
-
+    
+    private static final ByteBuffer[] longBuffers = { ByteBuffer.allocate(Long.SIZE * 8), ByteBuffer.allocate(Long.SIZE * 8) };
+    
+    static boolean stopped = false;
+    
+    private static final Field __fd;
+    static {
+        Field _fd;
+        try {
+            _fd = FileDescriptor.class.getDeclaredField("fd");
+            _fd.setAccessible(true);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            _fd = null;
+            System.exit(1);
+        }   
+        __fd = _fd;
+    }   
+    
+    private static int rFDC = -1;
+    static int getRealFileDescriptor(FileDescriptor fd) {
+        if(rFDC == -1)
+            try {
+                rFDC = __fd.getInt(fd);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        return rFDC;
+    }
+    
+    private static Pointer pointer = new Memory(4L); // An area of memory outside of the JVM, 4 bytes wide.
     /**
      * This hashes the number with a hashing algorithm based on xxHash:<br>
      * First the number is hashed with a random seed. After that it's
@@ -89,42 +124,59 @@ public class AtomicRNG {
         /*
          * Hash the numbers 2 times with different random seeds and mix the hashes randomly.
          */
-        ByteBuffer numberBuffer = ByteBuffer.wrap(Long.toHexString(number).getBytes());
-        long out = xxHash.hash(numberBuffer, rand.nextLong());
-        numberBuffer.flip();
-        number = xxHash.hash(numberBuffer, rand.nextLong());
-        int r = rand.nextInt(100);
-        if(r < 34)
-            out += number;
+        longBuffers[0].putLong(number);
+        longBuffers[0].flip();
+        ByteBuffer byteBuffer = ByteBuffer.wrap(Long.toHexString(number).getBytes());
+        for(int i = 0; i < 2; i++) {
+            longBuffers[i].putLong(xxHash.hash(byteBuffer, rand.nextLong()));
+            longBuffers[i].flip();
+            byteBuffer.flip();
+            hashCount++;
+        }
+/*        int r = rand.nextInt(100);
+       if(r < 34)
+            ;; //TODO
         else if(r < 67) {
-            if(out < number) {
-                number -= out;
-                out = number;
-            } else
-                out -= number;
+            ;; //TODO
         } else
-            out = (out / 2) + (number / 2);
-
-        hashCount += 2;
+            ;; TODO*/
+        
         /*
          * From time to time use the result to re-seed the internal RNG and exit.
          */
         if(rand.nextInt(100) < 5) {
-            rand.setSeed(out);
+            rand.setSeed(longBuffers[0].getLong());
+            longBuffers[0].clear();
             return;
         }
         /*
+         * Store the bytes outside of the JVM
+         */
+        pointer.write(0, longBuffers[0].array(), 0, 4);
+        /*
          * Write the result to /dev/random and update the statistics.
          */
-        String ret = Long.toHexString(out);
-        getLock(false);
+        toOSrng(pointer, true);
+        byteCount += 4;
+        longBuffers[0].clear();
+    }
+    
+    static boolean toOSrng(Pointer pointer, boolean addToQueueIfNeeded) {
+        boolean error;
         try {
-            osRNG.write(ret);
-            numCount += ret.length();
+            error = LibCwrapper.ioctl(getRealFileDescriptor(osRNG.getFD()), LibCwrapper.RNDADDENTROPY, pointer) != 0;
         } catch (IOException e) {
             e.printStackTrace();
+            error = true;
         }
-        lock.set(false);
+        if(error && addToQueueIfNeeded) {
+            Pointer copy = new Memory(4L);
+            for(int i = 0; i < 4; i++)
+                copy.setByte(i, pointer.getByte(i)); // TODO: Improve. copy.setPointer() doesn't work.
+            EntropyQueue.add(copy);
+        }
+        pointer.clear(4L);
+        return !error;
     }
 
     /**
@@ -191,6 +243,7 @@ public class AtomicRNG {
         public void run() {
             System.out.print(System.lineSeparator()+
                     "Cleaning up... ");
+            stopped = true;
             /*
              * Flush and close /dev/random.
              */
@@ -200,7 +253,6 @@ public class AtomicRNG {
             }
             if(osRNG != null) {
                 try {
-                    osRNG.flush();
                     osRNG.close();
                 } catch(IOException e) {
                     e.printStackTrace();
@@ -412,7 +464,11 @@ public class AtomicRNG {
         }
         getLock(false);
         try {
-            osRNG = new FileWriter(osRNGfile);
+            osRNG = new FileOutputStream(osRNGfile);
+            byte[] dummy = new byte[1];
+            rand.nextBytes(dummy);
+            osRNG.write(dummy); // we need this to get the file descriptor.
+            osRNG.flush();
         } catch (IOException e) {
             System.out.println("error!");
             e.printStackTrace();
@@ -426,7 +482,7 @@ public class AtomicRNG {
         String title = null;
         CanvasFrame canvasFrame = null;
         if(!quiet) {
-            title = "AtomicRNG v"+version+" | FPS: X.X | Numbers/sec: Y.Y (Z.Z hashes/sec)";
+            title = "AtomicRNG v"+version+" | FPS: X.X | Byte/sec: Y.Y (Z.Z hashes/sec)";
             canvasFrame = new CanvasFrame(title);
             canvasFrame.setDefaultCloseOperation(CanvasFrame.EXIT_ON_CLOSE);
             canvasFrame.getCanvas().addMouseListener(new AtomicMouseListener());
@@ -441,17 +497,13 @@ public class AtomicRNG {
         /*
          * A few Variables we'll need inside of the main loop.
          */
-        int fpsCount = 0, strength,
-                pixelGroupX, pixelGroupY, lastPixelGroupX = -1, lastPixelGroupY = -1;
+        int fpsCount = 0;
         float avgFPS = 0.0f;
-        int black = Color.BLACK.getRGB();
-        int white = Color.WHITE.getRGB();
         Color yellow = new Color(1.0f, 1.0f, 0.0f, 0.1f);
         BufferedImage statImg = null;
         Font font = new Font("Arial Black", Font.PLAIN, 18);
         long lastFound = System.currentTimeMillis();
         long lastSlice = lastFound;
-        PixelGroup pixelGroup = null;
         /*
          * All right, let's enter the matrix, eh, the main loop I mean...
          */
@@ -487,20 +539,13 @@ public class AtomicRNG {
                      */
                     if(!quiet) {
                         avgFPS = (float)fpsCount/10.0f;
-                        canvasFrame.setTitle(title.replaceAll("X\\.X", String.valueOf(avgFPS)).replaceAll("Y\\.Y", String.valueOf((float)numCount/10.0f)).replaceAll("Z\\.Z", String.valueOf((float)hashCount/10.0f)));
-                        numCount = hashCount = fpsCount = 0;
+                        canvasFrame.setTitle(title.replaceAll("X\\.X", String.valueOf(avgFPS)).replaceAll("Y\\.Y", String.valueOf((float)byteCount/10.0f)).replaceAll("Z\\.Z", String.valueOf((float)hashCount/10.0f)));
+                        byteCount = hashCount = fpsCount = 0;
                     }
                     /*
                      * prepare to count the next 10 seconds and flush /dev/random.
                      */
                     lastSlice = start;
-                    getLock(false);
-                    try {
-                        osRNG.flush();
-                    } catch (IOException e) {
-                        e.printStackTrace(); //TODO Handle or ignorable?
-                    }
-                    lock.set(false);
                 }
 
                 /*
@@ -536,9 +581,7 @@ public class AtomicRNG {
                 /*
                  * Wrap the frame to a Java BufferedImage and parse it pixel by pixel.
                  */
-                int[] bgr = new int[3];
                 ByteBuffer buffer = img.getByteBuffer();
-                int index;
                 HashMap<Integer, ArrayList<Integer>> ignoreBlocks = new HashMap<Integer, ArrayList<Integer>>();
                 ArrayList<Integer> yList;
                 ArrayList<Pixel> impacts = new ArrayList<Pixel>();
