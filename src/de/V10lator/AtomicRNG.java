@@ -128,7 +128,7 @@ public class AtomicRNG {
         longBuffers[0].flip();
         ByteBuffer byteBuffer = ByteBuffer.wrap(Long.toHexString(number).getBytes());
         for(int i = 0; i < 2; i++) {
-            longBuffers[i].putLong(LZ4Wrapper.XXH64(byteBuffer.array(), 0, 8, rand.nextLong()));
+            longBuffers[i].putLong(XXHashWrapper.XXH64(byteBuffer.array(), 0, 8, rand.nextLong()));
            // longBuffers[i].putLong(xxHash.hash(byteBuffer, rand.nextLong()));
             longBuffers[i].flip();
             byteBuffer.flip();
@@ -393,13 +393,23 @@ public class AtomicRNG {
             JarFile file = new JarFile(AtomicRNG.class.getProtectionDomain().getCodeSource().getLocation().getFile()); // Open our jar.
             
             /*
-             * Extract liblz4-java.so (xxHash library).
+             * Extract all files.
              */
-            InputStream inStream = file.getInputStream(file.getJarEntry("linux/amd64/liblz4-java.so"));
-            Path lib = tmpDir.resolve("liblz4-java.so");
-            lib.toFile().deleteOnExit();
-            Files.copy(inStream, lib);
-            
+            String[] files = { "xxhash" };
+            String[] prefixes = { ".so", "__LICENSE.txt" };
+            String jarDir = "resources/";
+            Path jarFile;
+            String fileName;
+            InputStream inStream;
+            for(String suffix: files)
+                for(String prefix: prefixes) {
+                    fileName = suffix+prefix;
+                    inStream = file.getInputStream(file.getJarEntry(jarDir+fileName));
+                    jarFile = tmpDir.resolve(fileName);
+                    jarFile.toFile().deleteOnExit();
+                    Files.copy(inStream, jarFile);
+                    inStream.close();
+                }
             file.close(); // close jar.
             
         } catch (Exception e) {
