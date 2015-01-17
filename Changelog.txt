@@ -1,5 +1,12 @@
 Changelog:
 
+0.16:
+	- Implement ray-tracing.
+	- Enable frame timestamping for better video out.
+	- Bugfixes.
+	- xxHash -> SHA-512 fpr more bytes/sec.
+	- Change stats from bytes/sec to kb/s.
+
 0.15:
 	- Added video recording.
 	- Fixed the dynamic filter and made it the default.
