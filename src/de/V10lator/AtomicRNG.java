@@ -464,7 +464,7 @@ public class AtomicRNG {
         String title = null;
         CanvasFrame canvasFrame = null;
         if(!quiet) {
-            title = "AtomicRNG v"+version+" | FPS: X.X | Byte/sec: Y.Y (Z.Z hashes/sec)";
+            title = "AtomicRNG v"+version+" | FPS: X.X | kb/s: Y.Y (Z.Z hashes/sec)";
             canvasFrame = new CanvasFrame(title);
             canvasFrame.setDefaultCloseOperation(CanvasFrame.EXIT_ON_CLOSE);
             canvasFrame.getCanvas().addMouseListener(new AtomicMouseListener());
@@ -520,7 +520,7 @@ public class AtomicRNG {
                      */
                     if(!quiet) {
                         avgFPS = (float)fpsCount/10.0f;
-                        canvasFrame.setTitle(title.replaceAll("X\\.X", String.valueOf(avgFPS)).replaceAll("Y\\.Y", String.valueOf((float)byteCount/10.0f)).replaceAll("Z\\.Z", String.valueOf((float)hashCount/10.0f)));
+                        canvasFrame.setTitle(title.replaceAll("X\\.X", String.valueOf(avgFPS)).replaceAll("Y\\.Y", String.valueOf(((float)byteCount/10.0f)*0.0078125f)).replaceAll("Z\\.Z", String.valueOf((float)hashCount/10.0f)));
                         byteCount = hashCount = fpsCount = 0;
                     }
                     /*
