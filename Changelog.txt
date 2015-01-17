@@ -4,7 +4,7 @@ Changelog:
 	- Implement ray-tracing.
 	- Enable frame timestamping for better video out.
 	- Bugfixes.
-	- xxHash -> SHA-512 fpr more bytes/sec.
+	- xxHash -> SHA-512 for more bytes/sec.
 	- Change stats from bytes/sec to kb/s.
 
 0.15:
