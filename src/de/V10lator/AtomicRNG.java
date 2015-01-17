@@ -370,11 +370,11 @@ public class AtomicRNG {
         
         /*
          * Extract native libraries for use with JNA
-         */
+         *
         try {
             /*
              * Create tmp dir and register it as JNAs library path.
-             */
+             *
             FileAttribute<?>[] empty = {};
             Path tmpDir = Files.createTempDirectory("AtomicRNG_", empty);
             tmpDir.toFile().deleteOnExit();
@@ -386,7 +386,7 @@ public class AtomicRNG {
             
             /*
              * Extract all files.
-             */
+             *
             String[] files = { "xxhash" };
             String[] prefixes = { ".so", "__LICENSE.txt" };
             String jarDir = "resources/";
