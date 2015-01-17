@@ -520,7 +520,7 @@ public class AtomicRNG {
                      */
                     if(!quiet) {
                         avgFPS = (float)fpsCount/10.0f;
-                        canvasFrame.setTitle(title.replaceAll("X\\.X", String.valueOf(avgFPS)).replaceAll("Y\\.Y", String.valueOf(((float)byteCount/10.0f)*0.0078125f)).replaceAll("Z\\.Z", String.valueOf((float)hashCount/10.0f)));
+                        canvasFrame.setTitle(title.replaceAll("X\\.X", String.valueOf(avgFPS)).replaceAll("Y\\.Y", String.valueOf((float)byteCount*0.00078125f)).replaceAll("Z\\.Z", String.valueOf((float)hashCount/10.0f)));
                         byteCount = hashCount = fpsCount = 0;
                     }
                     /*
