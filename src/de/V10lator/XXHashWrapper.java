@@ -1,6 +1,8 @@
 package de.V10lator;
 
 import com.sun.jna.Native;
+import com.sun.jna.NativeLong;
+import com.sun.jna.Pointer;
 
 public class XXHashWrapper {
     
@@ -8,5 +10,5 @@ public class XXHashWrapper {
         Native.register("xxhash.so");
     }
     
-    static native long XXH64(byte[] input, int offset, int len, long seed);
+    static native NativeLong XXH64(Pointer input, int length, long seed);
 }

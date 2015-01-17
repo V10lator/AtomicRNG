@@ -2,7 +2,6 @@ package de.V10lator;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.HashMap;
 
 class PixelGroup {
 
@@ -24,7 +23,7 @@ class PixelGroup {
         boolean active = false;
         for(int i = 0; i < 3; i++) {
             if(bgr[i] > this.bgr[i]) {
-                if(bgr[i] > this.bgr[i] * 1.75f) {
+                if(bgr[i] > this.bgr[i] * 1.6125f) {
                     active = true;
                     ret += bgr[i] - this.bgr[i];
                 } else
@@ -43,17 +42,13 @@ class PixelGroup {
         return ret;
     }
     
-    ArrayList<Pixel> scan(ByteBuffer img, int wS, int nC, long frameTime, HashMap<Integer, ArrayList<Integer>> ignorePixels) {
+    ArrayList<Pixel> scan(ByteBuffer img, int wS, int nC, long frameTime, boolean[][] ignorePixels) {
         ArrayList<Pixel> impacts = new ArrayList<Pixel>();
         Pixel pixel;
-        ArrayList<Integer> yList;
         for(int y = this.y; y < this.y + this.height; y++) {
             for(int x = this.x; x < this.x + this.width; x++) {
-                if(ignorePixels.containsKey(y)) {
-                    yList = ignorePixels.get(y);
-                    if(yList.contains(x))
-                        continue;
-                }
+                if(ignorePixels[x][y])
+                    continue;
                 pixel = filter(this, x, y, frameTime, img, wS, nC, ignorePixels, null);
                 if(pixel != null)
                     impacts.add(pixel);
@@ -66,44 +61,33 @@ class PixelGroup {
         return impacts;
     }
     
-    private static Pixel filter(PixelGroup pixelGroup, int x, int y, long start, ByteBuffer buffer, int wS, int nC, HashMap<Integer, ArrayList<Integer>> ignore, Pixel pixel) {
+    private static Pixel filter(PixelGroup pixelGroup, int x, int y, long start, ByteBuffer buffer, int wS, int nC, boolean[][] ignore, Pixel pixel) {
+        ignore[x][y] = true;
         int index = (y * wS) + (x * nC);
         int[] bgr = new int[3];
         for(int i = 0; i < 3; i++)
             bgr[i] = buffer.get(index + i) & 0xFF;
-            int strength = pixelGroup.getStrength(bgr);
-            if(strength == 0 || AtomicRNG.firstRun)
-                return pixel;
-            if(pixel == null)
-                pixel = new Pixel(x, y, strength, start);
-            else
-                pixel.charge(x, y, strength);
-            getOrCreate(y, ignore).add(x);
-            raytrace(pixelGroup, x, y, start, buffer, wS, nC, ignore, pixel);
+        int strength = pixelGroup.getStrength(bgr);
+        if(strength == 0 || AtomicRNG.firstRun)
             return pixel;
+        if(pixel == null)
+            pixel = new Pixel(x, y, strength, start);
+        else
+            pixel.charge(x, y, strength);
+        raytrace(pixelGroup, x, y, start, buffer, wS, nC, ignore, pixel);
+        return pixel;
     }
     
-    static ArrayList<Integer> getOrCreate(int key, HashMap<Integer, ArrayList<Integer>> map) {
-        ArrayList<Integer> list = map.get(key);
-        if(list == null) {
-            list = new ArrayList<Integer>();
-            map.put(key, list);
-        }
-        return list;
-    }
-
-    private static void raytrace(PixelGroup pixelGroup, int x, int y, long start, ByteBuffer buffer, int wS, int nC, HashMap<Integer, ArrayList<Integer>> ignore, Pixel pixel) {
-        ArrayList<Integer> yList;
+    private static void raytrace(PixelGroup pixelGroup, int x, int y, long start, ByteBuffer buffer, int wS, int nC, boolean[][] ignore, Pixel pixel) {
         x -= 1;
         y -= 1;
         for(int ym = y; ym < y + 3; ym++) {
             if(ym < 0 || ym >= AtomicRNG.height)
                 continue;
-            yList = getOrCreate(ym, ignore);
             for(int xm = x; xm < x + 3; xm++) {
                 if(xm < 0 || xm >= AtomicRNG.width)
                     continue;
-                if(!yList.contains(xm))
+                if(!ignore[xm][ym])
                     filter(pixelGroup, xm, ym, start, buffer, wS, nC, ignore, pixel);
             }
         }

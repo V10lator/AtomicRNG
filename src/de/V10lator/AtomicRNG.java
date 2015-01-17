@@ -31,7 +31,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileAttribute;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -45,6 +44,7 @@ import org.bytedeco.javacpp.avutil;
 import org.bytedeco.javacpp.opencv_core.IplImage;
 
 import com.sun.jna.Memory;
+import com.sun.jna.NativeLong;
 import com.sun.jna.Pointer;
 
 public class AtomicRNG {
@@ -69,7 +69,7 @@ public class AtomicRNG {
     static boolean firstRun = true;
     private static final ArrayList<Pixel> crosses = new ArrayList<Pixel>();
     
-    private static final ByteBuffer[] longBuffers = { ByteBuffer.allocate(Long.SIZE * 8), ByteBuffer.allocate(Long.SIZE * 8) };
+    private static final ByteBuffer[] longBuffers = { ByteBuffer.allocate(64), ByteBuffer.allocate(64) };
     
     static boolean stopped = false;
     
@@ -98,7 +98,7 @@ public class AtomicRNG {
         return rFDC;
     }
     
-    private static Pointer pointer = new Memory(4L); // An area of memory outside of the JVM, 4 bytes wide.
+    private static Pointer pointer = new Memory(8L); // An area of memory outside of the JVM, 4 bytes wide.
     /**
      * This hashes the number with a hashing algorithm based on xxHash:<br>
      * First the number is hashed with a random seed. After that it's
@@ -124,14 +124,13 @@ public class AtomicRNG {
         /*
          * Hash the numbers 2 times with different random seeds and mix the hashes randomly.
          */
-        longBuffers[0].putLong(number);
-        longBuffers[0].flip();
-        ByteBuffer byteBuffer = ByteBuffer.wrap(Long.toHexString(number).getBytes());
+        byte[] bytes = Long.toHexString(number).getBytes();
+        Pointer bytePointer = new Memory(bytes.length);
+        bytePointer.write(0L, bytes, 0, bytes.length);
         for(int i = 0; i < 2; i++) {
-            longBuffers[i].putLong(XXHashWrapper.XXH64(byteBuffer.array(), 0, 8, rand.nextLong()));
-           // longBuffers[i].putLong(xxHash.hash(byteBuffer, rand.nextLong()));
+            long l = XXHashWrapper.XXH64(bytePointer, bytes.length, rand.nextLong()).longValue();
+            longBuffers[i].putLong(l);
             longBuffers[i].flip();
-            byteBuffer.flip();
             hashCount++;
         }
 /*        int r = rand.nextInt(100);
@@ -152,8 +151,8 @@ public class AtomicRNG {
         }
         /*
          * Store the bytes outside of the JVM
-         */
-        pointer.write(0, longBuffers[0].array(), 0, 4);
+         */;
+        pointer.write(0, longBuffers[0].array(), 0, 8);
         /*
          * Write the result to /dev/random and update the statistics.
          */
@@ -545,14 +544,14 @@ public class AtomicRNG {
                     width = img.width();
                     height = img.height();
                     int rows = height >> 5, columns = width >> 5;
-                    lastPixel = new PixelGroup[columns][rows];
-                    int cw = width / columns, ch = height / columns, xi;
+                    int cw = width / columns, ch = height / rows, yi;
+                    lastPixel = new PixelGroup[rows][columns];
                     PixelGroup[] entry;
-                    for(int x = 0; x < columns; x++) {
-                        entry = lastPixel[x];
-                        xi = x * cw;
-                        for(int y = 0; y < rows; y++)
-                            entry[y] = new PixelGroup(xi, y * ch);
+                    for(int y = 0; y < rows; y++) {
+                        entry = lastPixel[y];
+                        yi = y * ch;
+                        for(int x = 0; x < columns; x++)
+                            entry[x] = new PixelGroup(x * cw, yi);
                     }
                         
                     /*
@@ -562,7 +561,7 @@ public class AtomicRNG {
                         statXoffset = width + 2;
                         statWidth = statXoffset + width;
                         statImg = new BufferedImage(statWidth, height, BufferedImage.TYPE_3BYTE_BGR);
-                        for(int x = width; x <= statXoffset; x++)
+                        for(int x = width; x < statXoffset; x++)
                             for(int y = 0; y < height; y++)
                                 statImg.setRGB(x, y, Color.RED.getRGB());
                         if(!quiet)
@@ -581,12 +580,15 @@ public class AtomicRNG {
                  * Wrap the frame to a Java BufferedImage and parse it pixel by pixel.
                  */
                 ByteBuffer buffer = img.getByteBuffer();
-                HashMap<Integer, ArrayList<Integer>> ignorePixels = new HashMap<Integer, ArrayList<Integer>>();
+                boolean[][] ignoredPixels = new boolean[width][height];
+                for(int x = 0; x < width; x++)
+                    for(int y = 0; y < height; y++)
+                        ignoredPixels[x][y] = false;
                 ArrayList<Pixel>[] impacts = new ArrayList[(height >> 5) * (width >> 5)];
                 int c = 0;
                 for(PixelGroup[] pga: lastPixel)
                     for(PixelGroup pg: pga)
-                        impacts[c++] = pg.scan(buffer, img.widthStep(), img.nChannels(), start, ignorePixels);
+                        impacts[c++] = pg.scan(buffer, img.widthStep(), img.nChannels(), start, ignoredPixels);
                 
                 boolean impact = false;
                 for(ArrayList<Pixel> list: impacts)
