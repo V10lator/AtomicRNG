@@ -30,6 +30,8 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileAttribute;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Random;
@@ -44,7 +46,6 @@ import org.bytedeco.javacpp.avutil;
 import org.bytedeco.javacpp.opencv_core.IplImage;
 
 import com.sun.jna.Memory;
-import com.sun.jna.NativeLong;
 import com.sun.jna.Pointer;
 
 public class AtomicRNG {
@@ -98,7 +99,7 @@ public class AtomicRNG {
         return rFDC;
     }
     
-    private static Pointer pointer = new Memory(8L); // An area of memory outside of the JVM, 4 bytes wide.
+    private static MessageDigest md;
     /**
      * This hashes the number with a hashing algorithm based on xxHash:<br>
      * First the number is hashed with a random seed. After that it's
@@ -122,42 +123,35 @@ public class AtomicRNG {
         }
 
         /*
-         * Hash the numbers 2 times with different random seeds and mix the hashes randomly.
+         * Hash the numbers.
          */
         byte[] bytes = Long.toHexString(number).getBytes();
-        Pointer bytePointer = new Memory(bytes.length);
-        bytePointer.write(0L, bytes, 0, bytes.length);
-        for(int i = 0; i < 2; i++) {
-            long l = XXHashWrapper.XXH64(bytePointer, bytes.length, rand.nextLong()).longValue();
-            longBuffers[i].putLong(l);
-            longBuffers[i].flip();
-            hashCount++;
+        if(md == null) {
+            try {
+                md = MessageDigest.getInstance("SHA-512");
+            } catch (NoSuchAlgorithmException e) {
+                e.printStackTrace();
+                System.exit(1);
+            }
         }
-/*        int r = rand.nextInt(100);
-       if(r < 34)
-            ;; //TODO
-        else if(r < 67) {
-            ;; //TODO
-        } else
-            ;; TODO*/
-        
+        bytes = md.digest(bytes);
+        hashCount++;
         /*
          * From time to time use the result to re-seed the internal RNG and exit.
          */
         if(rand.nextInt(100) < 5) {
-            rand.setSeed(longBuffers[0].getLong());
+            rand.setSeed(ByteBuffer.wrap(bytes).getLong());
             longBuffers[0].clear();
             return;
         }
-        /*
-         * Store the bytes outside of the JVM
-         */;
-        pointer.write(0, longBuffers[0].array(), 0, 8);
+        Pointer pointer = new Memory(bytes.length);
+        pointer.write(0, bytes, 0, bytes.length);
         /*
          * Write the result to /dev/random and update the statistics.
          */
         toOSrng(pointer, true);
-        byteCount += 4;
+        pointer.clear(bytes.length);
+        byteCount += bytes.length;
         longBuffers[0].clear();
     }
     
@@ -175,7 +169,6 @@ public class AtomicRNG {
                 copy.setByte(i, pointer.getByte(i)); // TODO: Improve. copy.setPointer() doesn't work.
             EntropyQueue.add(copy);
         }
-        pointer.clear(4L);
         return !error;
     }
 

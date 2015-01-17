@@ -72,12 +72,15 @@ class EntropyQueue extends Thread {
             window.clear(4L);
             long free = maxEntropy - entropyAvail;
             Iterator<Pointer> iter = queue.iterator();
+            Memory pointer;
             while(iter.hasNext()) {
-                if(free < 4)
-                    break;
-                if(AtomicRNG.toOSrng(iter.next(), false)) {
+                pointer = (Memory) iter.next();
+                if(free < pointer.size())
+                    continue;
+                if(AtomicRNG.toOSrng(pointer, false)) {
                     iter.remove();
-                    free -= 4;
+                    free -= pointer.size();
+                    pointer.clear(pointer.size());
                 } else
                     break;
             }
