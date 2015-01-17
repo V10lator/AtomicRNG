@@ -465,7 +465,7 @@ public class AtomicRNG {
         CanvasFrame canvasFrame = null;
         if(!quiet) {
             title = "AtomicRNG v"+version+" | FPS: %1 | %2 kb/s (%3 hashes/sec)";
-            canvasFrame = new CanvasFrame(title);
+            canvasFrame = new CanvasFrame(title.replaceAll("%.", "N/A"));
             canvasFrame.setDefaultCloseOperation(CanvasFrame.EXIT_ON_CLOSE);
             canvasFrame.getCanvas().addMouseListener(new AtomicMouseListener());
         }
