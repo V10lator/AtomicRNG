@@ -17,7 +17,6 @@ class PixelGroup {
     private static ByteBuffer tmp_buffer;
     private static long tmp_start;
     private static PixelGroup tmp_instance;
-    private static boolean tmp_init = false;
     
     
     PixelGroup(int x, int y) {
@@ -53,20 +52,20 @@ class PixelGroup {
         return ret;
     }
     
-    ArrayList<Pixel> scan(ByteBuffer img, int wS, int nC, long frameTime, boolean[][] ignorePixels) {
+    static void init(ByteBuffer img, int wS, int nC, long frameTime, boolean[][] ignorePixels) {
+        tmp_ignore = ignorePixels;
+        tmp_wS = wS;
+        tmp_nC = nC;
+        tmp_buffer = img;
+        tmp_start = frameTime;
+    }
+    
+    ArrayList<Pixel> scan() {
         ArrayList<Pixel> impacts = new ArrayList<Pixel>();
-        if(!tmp_init) {
-            tmp_ignore = ignorePixels;
-            tmp_wS = wS;
-            tmp_nC = nC;
-            tmp_buffer = img;
-            tmp_start = frameTime;
-            tmp_init = true;
-        }
         tmp_instance = this;
         for(int y = this.y; y < this.y + this.height; y++) {
             for(int x = this.x; x < this.x + this.width; x++) {
-                if(ignorePixels[x][y])
+                if(tmp_ignore[x][y])
                     continue;
                 filter(x, y);
                 if(tmp_pixel != null)
@@ -74,8 +73,8 @@ class PixelGroup {
             }
         }
         if(!impacts.isEmpty()) {
-            AtomicRNG.toOSrng(frameTime - lastImpact);
-            lastImpact = frameTime;
+            AtomicRNG.toOSrng(tmp_start - lastImpact);
+            lastImpact = tmp_start;
         }
         return impacts;
     }
@@ -95,7 +94,6 @@ class PixelGroup {
         tmp_ignore = null;
         tmp_buffer = null;
         tmp_instance = null;
-        tmp_init = false;
     }
     
     private static void filter(int x, int y) {
