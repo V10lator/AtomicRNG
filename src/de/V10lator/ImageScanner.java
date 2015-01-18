@@ -2,7 +2,6 @@ package de.V10lator;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 class ImageScanner implements Runnable {
 
@@ -15,7 +14,7 @@ class ImageScanner implements Runnable {
     private int tmp_index, tmp_fi, tmp_s;
     private static int tmp_wS, tmp_nC;
     private Pixel tmp_pixel;
-    private static AtomicBoolean[][] tmp_ignore;
+    private static boolean[][] tmp_ignore;
     private static ByteBuffer tmp_buffer;
     private static long tmp_start;
     ArrayList<Pixel> impacts;
@@ -54,7 +53,7 @@ class ImageScanner implements Runnable {
         return ret;
     }
     
-    static void init(ByteBuffer img, int wS, int nC, long frameTime, AtomicBoolean[][] ignorePixels) {
+    static void init(ByteBuffer img, int wS, int nC, long frameTime, boolean[][] ignorePixels) {
         tmp_ignore = ignorePixels;
         tmp_wS = wS;
         tmp_nC = nC;
@@ -67,7 +66,7 @@ class ImageScanner implements Runnable {
         impacts = new ArrayList<Pixel>();
         for(int y = this.y; y < this.y + this.height; y++) {
             for(int x = this.x; x < this.x + this.width; x++) {
-                if(tmp_ignore[x][y].get())
+                if(tmp_ignore[x][y])
                     continue;
                 filter(x, y, this);
                 if(tmp_pixel != null)
@@ -101,8 +100,7 @@ class ImageScanner implements Runnable {
     }
     
     private static void filter(int x, int y, ImageScanner instance) {
-        if(!tmp_ignore[x][y].compareAndSet(false, true))
-            return;
+        tmp_ignore[x][y] = true;
         instance.tmp_index = (y * tmp_wS) + (x * tmp_nC);
         for(instance.tmp_fi = 0; instance.tmp_fi < 3; instance.tmp_fi++)
             instance.tmp_bgr[instance.tmp_fi] = tmp_buffer.get(instance.tmp_index + instance.tmp_fi) & 0xFF;
@@ -125,7 +123,7 @@ class ImageScanner implements Runnable {
             for(int xe = x + 3; x < xe + 3; x++) {
                 if(x < 0 || x >= AtomicRNG.width)
                     continue;
-                if(!tmp_ignore[x][y].get())
+                if(!tmp_ignore[x][y])
                     filter(x, y, instance);
             }
         }
