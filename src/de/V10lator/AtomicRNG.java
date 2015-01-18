@@ -578,10 +578,9 @@ public class AtomicRNG {
                         ignoredPixels[x][y] = false;
                 ArrayList<Pixel>[] impacts = new ArrayList[(height >> 5) * (width >> 5)];
                 int c = 0;
-                PixelGroup.init(img.getByteBuffer(), img.widthStep(), img.nChannels(), start, ignoredPixels);
                 for(PixelGroup[] pga: lastPixel)
                     for(PixelGroup pg: pga)
-                        impacts[c++] = pg.scan();
+                        impacts[c++] = pg.scan(img.getByteBuffer(), img.widthStep(), img.nChannels(), start, ignoredPixels);
                 PixelGroup.cleanup();
                 
                 boolean impact = false;
