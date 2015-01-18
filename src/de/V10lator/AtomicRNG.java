@@ -580,8 +580,10 @@ public class AtomicRNG {
                 int c = 0;
                 ImageScanner.init(img.getByteBuffer(), img.widthStep(), img.nChannels(), start, ignoredPixels);
                 for(ImageScanner[] isa: lastPixel)
-                    for(ImageScanner is: isa)
-                        impacts[c++] = is.scan();
+                    for(ImageScanner is: isa) {
+                        is.run();
+                        impacts[c++] = is.impacts;
+                    }
                 ImageScanner.cleanup();
                 
                 boolean impact = false;
