@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.jar.JarFile;
 
 import org.bytedeco.javacv.CanvasFrame;
@@ -58,7 +59,7 @@ public class AtomicRNG {
     private static int hashCount = 0;
     private static long byteCount = 0;
 
-    static ImageScanner[][] lastPixel;
+    static ImageScanner[][] scanners;
     private static FFmpegFrameRecorder videoOut = null;
     private static float ts = 0.0f;
 
@@ -538,10 +539,10 @@ public class AtomicRNG {
                     height = img.height();
                     int rows = height >> 5, columns = width >> 5;
                     int cw = width / columns, ch = height / rows, yi;
-                    lastPixel = new ImageScanner[rows][columns];
+                    scanners = new ImageScanner[rows][columns];
                     ImageScanner[] entry;
                     for(int y = 0; y < rows; y++) {
-                        entry = lastPixel[y];
+                        entry = scanners[y];
                         yi = y * ch;
                         for(int x = 0; x < columns; x++)
                             entry[x] = new ImageScanner(x * cw, yi);
@@ -572,18 +573,35 @@ public class AtomicRNG {
                 /*
                  * Wrap the frame to a Java BufferedImage and parse it pixel by pixel.
                  */
-                boolean[][] ignoredPixels = new boolean[width][height];
+                AtomicBoolean[][] ignoredPixels = new AtomicBoolean[width][height];
                 for(int x = 0; x < width; x++)
                     for(int y = 0; y < height; y++)
-                        ignoredPixels[x][y] = false;
-                ArrayList<Pixel>[] impacts = new ArrayList[(height >> 5) * (width >> 5)];
-                int c = 0;
+                        ignoredPixels[x][y] = new AtomicBoolean(false);
+                final ArrayList<Pixel>[] impacts = new ArrayList[(height >> 5) * (width >> 5)];
+                final AtomicInteger c = new AtomicInteger();
                 ImageScanner.init(img.getByteBuffer(), img.widthStep(), img.nChannels(), start, ignoredPixels);
-                for(ImageScanner[] isa: lastPixel)
-                    for(ImageScanner is: isa) {
-                        is.run();
-                        impacts[c++] = is.impacts;
-                    }
+                Thread t = null;
+                for(int isc = 0; isc < scanners.length; isc++) {
+                    final int tn = isc;
+                    t = new Thread() {
+                        @Override
+                        public void run() {
+                            int realC;
+                            for(ImageScanner is: scanners[tn]) {
+                                is.run();
+                                realC = c.getAndAdd(1);
+                                impacts[realC] = is.impacts;
+                            }
+                        }
+                    };
+                    if(isc < scanners.length - 1)
+                        t.start();
+                }
+                t.run();
+                while(c.get() < scanners.length * scanners[0].length)
+                    try {
+                        Thread.sleep(1L);
+                    } catch (InterruptedException e1) {}
                 ImageScanner.cleanup();
                 
                 boolean impact = false;
