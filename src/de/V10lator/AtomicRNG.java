@@ -572,6 +572,7 @@ public class AtomicRNG {
                 /*
                  * Wrap the frame to a Java BufferedImage and parse it pixel by pixel.
                  */
+                ByteBuffer buffer = img.getByteBuffer();
                 boolean[][] ignoredPixels = new boolean[width][height];
                 for(int x = 0; x < width; x++)
                     for(int y = 0; y < height; y++)
@@ -580,8 +581,7 @@ public class AtomicRNG {
                 int c = 0;
                 for(PixelGroup[] pga: lastPixel)
                     for(PixelGroup pg: pga)
-                        impacts[c++] = pg.scan(img.getByteBuffer(), img.widthStep(), img.nChannels(), start, ignoredPixels);
-                PixelGroup.cleanup();
+                        impacts[c++] = pg.scan(buffer, img.widthStep(), img.nChannels(), start, ignoredPixels);
                 
                 boolean impact = false;
                 for(ArrayList<Pixel> list: impacts)

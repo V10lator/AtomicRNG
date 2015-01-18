@@ -9,17 +9,6 @@ class PixelGroup {
     private final int x, y, width, height;
     long lastImpact = System.currentTimeMillis();
     
-    // Shared temp values for faster ray-tracing:
-    private static final int[] tmp_bgr = new int[3];
-    private static int tmp_index, tmp_fi, tmp_s, tmp_wS, tmp_nC;
-    private static Pixel tmp_pixel;
-    private static boolean[][] tmp_ignore;
-    private static ByteBuffer tmp_buffer;
-    private static long tmp_start;
-    private static PixelGroup tmp_instance;
-    private static boolean tmp_init = false;
-    
-    
     PixelGroup(int x, int y) {
         this.x = x;
         this.y = y;
@@ -55,22 +44,14 @@ class PixelGroup {
     
     ArrayList<Pixel> scan(ByteBuffer img, int wS, int nC, long frameTime, boolean[][] ignorePixels) {
         ArrayList<Pixel> impacts = new ArrayList<Pixel>();
-        if(!tmp_init) {
-            tmp_ignore = ignorePixels;
-            tmp_wS = wS;
-            tmp_nC = nC;
-            tmp_buffer = img;
-            tmp_start = frameTime;
-            tmp_init = true;
-        }
-        tmp_instance = this;
+        Pixel pixel;
         for(int y = this.y; y < this.y + this.height; y++) {
             for(int x = this.x; x < this.x + this.width; x++) {
                 if(ignorePixels[x][y])
                     continue;
-                filter(x, y);
-                if(tmp_pixel != null)
-                    impacts.add(tmp_pixel);
+                pixel = filter(this, x, y, frameTime, img, wS, nC, ignorePixels, null);
+                if(pixel != null)
+                    impacts.add(pixel);
             }
         }
         if(!impacts.isEmpty()) {
@@ -80,50 +61,34 @@ class PixelGroup {
         return impacts;
     }
     
-    static void cleanup() {
-        tmp_bgr[0] =
-                tmp_bgr[1] =
-                tmp_bgr[2] =
-                tmp_index =
-                tmp_fi =
-                tmp_s =
-                tmp_wS =
-                tmp_nC =
-                0;
-        tmp_start = 0L;
-        tmp_pixel = null;
-        tmp_ignore = null;
-        tmp_buffer = null;
-        tmp_instance = null;
-        tmp_init = false;
-    }
-    
-    private static void filter(int x, int y) {
-        tmp_ignore[x][y] = true;
-        tmp_index = (y * tmp_wS) + (x * tmp_nC);
-        for(tmp_fi = 0; tmp_fi < 3; tmp_fi++)
-            tmp_bgr[tmp_fi] = tmp_buffer.get(tmp_index + tmp_fi) & 0xFF;
-        tmp_s = tmp_instance.getStrength(tmp_bgr);
-        if(tmp_s == 0 || AtomicRNG.firstRun)
-            return;
-        if(tmp_pixel == null)
-            tmp_pixel = new Pixel(x, y, tmp_s, tmp_start);
+    private static Pixel filter(PixelGroup pixelGroup, int x, int y, long start, ByteBuffer buffer, int wS, int nC, boolean[][] ignore, Pixel pixel) {
+        ignore[x][y] = true;
+        int index = (y * wS) + (x * nC);
+        int[] bgr = new int[3];
+        for(int i = 0; i < 3; i++)
+            bgr[i] = buffer.get(index + i) & 0xFF;
+        int strength = pixelGroup.getStrength(bgr);
+        if(strength == 0 || AtomicRNG.firstRun)
+            return pixel;
+        if(pixel == null)
+            pixel = new Pixel(x, y, strength, start);
         else
-            tmp_pixel.charge(x, y, tmp_s);
-        raytrace(x, y);
+            pixel.charge(x, y, strength);
+        raytrace(pixelGroup, x, y, start, buffer, wS, nC, ignore, pixel);
+        return pixel;
     }
     
-    private static void raytrace(int x, int y) {
+    private static void raytrace(PixelGroup pixelGroup, int x, int y, long start, ByteBuffer buffer, int wS, int nC, boolean[][] ignore, Pixel pixel) {
         x -= 1;
         y -= 1;
-        for(int ye = y + 3; y < ye + 3; y++) {
-            if(y < 0 || y >= AtomicRNG.height)
+        for(int ym = y; ym < y + 3; ym++) {
+            if(ym < 0 || ym >= AtomicRNG.height)
                 continue;
-            for(int xe = x + 3; x < xe + 3; x++) {
-                if(x < 0 || x >= AtomicRNG.width)
+            for(int xm = x; xm < x + 3; xm++) {
+                if(xm < 0 || xm >= AtomicRNG.width)
                     continue;
-                if(!tmp_ignore[x][y])
-                    filter(x, y);
+                if(!ignore[xm][ym])
+                    filter(pixelGroup, xm, ym, start, buffer, wS, nC, ignore, pixel);
             }
         }
     }
