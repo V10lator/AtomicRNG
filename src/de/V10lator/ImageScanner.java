@@ -3,13 +3,13 @@ package de.V10lator;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 
-class PixelGroup {
+class ImageScanner {
 
     private final int[] bgr = { 255, 255, 255 };
     private final int x, y, width, height;
     long lastImpact = System.currentTimeMillis();
     
-    PixelGroup(int x, int y) {
+    ImageScanner(int x, int y) {
         this.x = x;
         this.y = y;
         width = AtomicRNG.width / (AtomicRNG.width >> 5);
@@ -61,7 +61,7 @@ class PixelGroup {
         return impacts;
     }
     
-    private static Pixel filter(PixelGroup pixelGroup, int x, int y, long start, ByteBuffer buffer, int wS, int nC, boolean[][] ignore, Pixel pixel) {
+    private static Pixel filter(ImageScanner pixelGroup, int x, int y, long start, ByteBuffer buffer, int wS, int nC, boolean[][] ignore, Pixel pixel) {
         ignore[x][y] = true;
         int index = (y * wS) + (x * nC);
         int[] bgr = new int[3];
@@ -78,7 +78,7 @@ class PixelGroup {
         return pixel;
     }
     
-    private static void raytrace(PixelGroup pixelGroup, int x, int y, long start, ByteBuffer buffer, int wS, int nC, boolean[][] ignore, Pixel pixel) {
+    private static void raytrace(ImageScanner pixelGroup, int x, int y, long start, ByteBuffer buffer, int wS, int nC, boolean[][] ignore, Pixel pixel) {
         x -= 1;
         y -= 1;
         for(int ym = y; ym < y + 3; ym++) {

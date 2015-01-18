@@ -58,7 +58,7 @@ public class AtomicRNG {
     private static int hashCount = 0;
     private static long byteCount = 0;
 
-    static PixelGroup[][] lastPixel;
+    static ImageScanner[][] scanners;
     private static FFmpegFrameRecorder videoOut = null;
     private static float ts = 0.0f;
 
@@ -538,13 +538,11 @@ public class AtomicRNG {
                     height = img.height();
                     int rows = height >> 5, columns = width >> 5;
                     int cw = width / columns, ch = height / rows, yi;
-                    lastPixel = new PixelGroup[rows][columns];
-                    PixelGroup[] entry;
+                    scanners = new ImageScanner[rows][columns];
                     for(int y = 0; y < rows; y++) {
-                        entry = lastPixel[y];
                         yi = y * ch;
                         for(int x = 0; x < columns; x++)
-                            entry[x] = new PixelGroup(x * cw, yi);
+                            scanners[y][x] = new ImageScanner(x * cw, yi);
                     }
                         
                     /*
@@ -579,9 +577,9 @@ public class AtomicRNG {
                         ignoredPixels[x][y] = false;
                 ArrayList<Pixel>[] impacts = new ArrayList[(height >> 5) * (width >> 5)];
                 int c = 0;
-                for(PixelGroup[] pga: lastPixel)
-                    for(PixelGroup pg: pga)
-                        impacts[c++] = pg.scan(buffer, img.widthStep(), img.nChannels(), start, ignoredPixels);
+                for(ImageScanner[] isa: scanners)
+                    for(ImageScanner is: isa)
+                        impacts[c++] = is.scan(buffer, img.widthStep(), img.nChannels(), start, ignoredPixels);
                 
                 boolean impact = false;
                 for(ArrayList<Pixel> list: impacts)
