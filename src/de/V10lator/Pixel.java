@@ -19,6 +19,7 @@ class Pixel {
         if(this.last < power) {
             this.x = x;
             this.y = y;
+            this.last = power;
             return true;
         }
         return false;
