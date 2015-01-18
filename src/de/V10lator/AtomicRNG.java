@@ -38,6 +38,8 @@ import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.jar.JarFile;
 
+import javax.imageio.ImageIO;
+
 import org.bytedeco.javacv.CanvasFrame;
 import org.bytedeco.javacv.FFmpegFrameRecorder;
 import org.bytedeco.javacv.OpenCVFrameGrabber;
@@ -69,6 +71,10 @@ public class AtomicRNG {
 
     static boolean firstRun = true;
     private static final ArrayList<Pixel> crosses = new ArrayList<Pixel>();
+    
+    private static final ArrayList<Pixel> randomImagePixels = new ArrayList<Pixel>();
+    private static long randomImageNumber = 0L;
+    private static long lastRandomImageSlice;
     
     private static final ByteBuffer[] longBuffers = { ByteBuffer.allocate(64), ByteBuffer.allocate(64) };
     
@@ -256,6 +262,8 @@ public class AtomicRNG {
                 toggleRecording();
             } else
                 lock.set(false);
+            if(randomImageNumber > 0)
+                toggleRandomImage();
             try {
                 Thread.sleep(20L);
             } catch (InterruptedException e) {
@@ -293,8 +301,38 @@ public class AtomicRNG {
         }
         lock.set(false);
     }
-
     
+    static void toggleRandomImage() {
+        if(randomImageNumber > 0) {
+            paintRandomImage();
+            randomImageNumber = 0;
+        } else {
+            lastRandomImageSlice = System.currentTimeMillis();
+            randomImageNumber++;
+        }
+    }
+
+    private static void paintRandomImage() {
+        BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        Graphics graphics = img.getGraphics();
+        graphics.setColor(Color.BLACK);
+        graphics.fillRect(0, 0, width, height);
+        long oldSeed = rand.nextLong();
+        float b;
+        for(Pixel pixel: randomImagePixels) {
+            rand.setSeed(pixel.power);
+            img.setRGB(pixel.x, pixel.y, new Color(rand.nextInt(256), rand.nextInt(256), rand.nextInt(256)).getRGB());
+        }
+        rand.setSeed(oldSeed);
+        randomImagePixels.clear();
+        try {
+            File out = new File("Random image #"+(randomImageNumber++)+".png");
+            ImageIO.write(img, "png", out);
+        } catch(IOException e) {
+            e.printStackTrace();
+        }
+        lastRandomImageSlice = System.currentTimeMillis();
+    }
     
     private static Font smallFont = new Font("Arial", Font.PLAIN, 8);
     private static void paintCross(Graphics g, Pixel pixel) {
@@ -535,6 +573,9 @@ public class AtomicRNG {
                      */
                     lastSlice = start;
                 }
+                
+                if(randomImageNumber > 0 && start - lastRandomImageSlice >= 3600000L)
+                    paintRandomImage();
 
                 /*
                  * The width is static, so if it's zero we never asked for it and other infos.
@@ -600,8 +641,11 @@ public class AtomicRNG {
                             toOSrng(pix.x);
                             toOSrng(pix.power);
                             toOSrng(pix.y);
-                            if(!quiet)
+                            if(!quiet) {
                                 crosses.add(pix);
+                                if(randomImageNumber > 0)
+                                    randomImagePixels.add(pix);
+                            }
                         }
                         toOSrng((int)(start - lastFound));
                         impact = true;
@@ -648,6 +692,11 @@ public class AtomicRNG {
                         lock.set(false);
                         graphics.drawOval(statXoffset + width - 25, height - 25, 20, 20);
                     }
+                    graphics.setColor(Color.GREEN);
+                    if(randomImageNumber > 0)
+                        graphics.fillOval(statXoffset + width - 50, height - 25, 20, 20);
+                    else
+                        graphics.drawOval(statXoffset + width - 50, height - 25, 20, 20);
                     if(!quiet)
                         canvasFrame.showImage(statImg);
                 }
@@ -672,6 +721,13 @@ public class AtomicRNG {
 
     static boolean isVideoButton(int x, int y) {
         int vX = statXoffset + width - 25;
+        int vY = height - 25;
+        return x >= vX && x <= vX + 20 &&
+                y >= vY && y <= vY + 20;
+    }
+    
+    static boolean isImageButton(int x, int y) {
+        int vX = statXoffset + width - 50;
         int vY = height - 25;
         return x >= vX && x <= vX + 20 &&
                 y >= vY && y <= vY + 20;

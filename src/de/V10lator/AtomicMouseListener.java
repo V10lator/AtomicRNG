@@ -9,6 +9,8 @@ public class AtomicMouseListener implements MouseListener {
     public void mouseClicked(MouseEvent event) {
         if(AtomicRNG.isVideoButton(event.getX(), event.getY()))
             AtomicRNG.toggleRecording();
+        if(AtomicRNG.isImageButton(event.getX(), event.getY()))
+            AtomicRNG.toggleRandomImage();
     }
 
     @Override
