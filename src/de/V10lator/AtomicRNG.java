@@ -340,12 +340,15 @@ public class AtomicRNG {
         /*
          * Parse commandline arguments.
          */
-        boolean quiet = false/*, experimentalFilter = false*/;
+        boolean quiet = false, doubleView = false/*, experimentalFilter = false*/;
         for(String arg: args) {
             switch(arg) {
             case("-q"):
                 quiet = true;
-            break;
+                break;
+            case("-d"):
+                doubleView = true;
+                break;
             /*                case("-ef"):
                     experimentalFilter = true;
                     System.out.println("WARNING: Experimental noise filter activated!"+System.lineSeparator());
@@ -549,22 +552,27 @@ public class AtomicRNG {
                      * Calculate the needed window size and paint the red line in the middle.
                      */
                     if(!quiet) {
-                        statXoffset = width + 2;
-                        statWidth = statXoffset + width;
+                        if(doubleView) {
+                            statXoffset = width + 2;
+                            statWidth = statXoffset + width;
+                        } else
+                            statWidth = width;
                         statImg = new BufferedImage(statWidth, height, BufferedImage.TYPE_3BYTE_BGR);
-                        for(int x = width; x < statXoffset; x++)
-                            for(int y = 0; y < height; y++)
-                                statImg.setRGB(x, y, Color.RED.getRGB());
-                        if(!quiet)
-                            canvasFrame.setCanvasSize(statWidth, height);
+                        if(doubleView)
+                            for(int x = width; x < statXoffset; x++)
+                                for(int y = 0; y < height; y++)
+                                    statImg.setRGB(x, y, Color.RED.getRGB());
+                        canvasFrame.setCanvasSize(statWidth, height);
                     }
                 }
                 Graphics graphics = null;
                 if(!quiet) {
                     graphics = statImg.getGraphics();
                     graphics.drawImage(img.getBufferedImage(), 0, 0, null);
-                    graphics.setColor(Color.BLACK);
-                    graphics.fillRect(statXoffset, 0, statXoffset + width, height);
+                    if(doubleView) {
+                        graphics.setColor(Color.BLACK);
+                        graphics.fillRect(statXoffset, 0, statXoffset + width, height);
+                    }
                 }
 
                 /*
@@ -611,10 +619,12 @@ public class AtomicRNG {
                  * Write the yellow, transparent text onto the window and update it.
                  */
                 if(!quiet) {
-                    graphics.setColor(yellow);
-                    graphics.setFont(font);
-                    graphics.drawString("Raw", width / 2 - 25, 25);
-                    graphics.drawString("Filtered", statXoffset + (width / 2 - 50), 25);
+                    if(doubleView) {
+                        graphics.setColor(yellow);
+                        graphics.setFont(font);
+                        graphics.drawString("Raw", width / 2 - 25, 25);
+                        graphics.drawString("Filtered", statXoffset + (width / 2 - 50), 25);
+                    }
 
                     graphics.setColor(Color.RED);
                     getLock(false);
