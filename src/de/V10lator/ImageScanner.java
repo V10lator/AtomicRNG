@@ -16,43 +16,23 @@ class ImageScanner {
         height = AtomicRNG.height / (AtomicRNG.height >> 5);
     }
     
-    
-    int getStrength(int[] bgr) {
-        int ret = 0;
-        int[] adjust = { -1, -1, -1 };
-        boolean active = false;
-        for(int i = 0; i < 3; i++) {
-            if(bgr[i] > this.bgr[i]) {
-                if(bgr[i] > this.bgr[i] * 1.6125f) {
-                    active = true;
-                    ret += bgr[i] - this.bgr[i];
-                } else
-                    adjust[i] = bgr[i];
-            } else if(AtomicRNG.rand.nextInt(10000) < 5)
-                adjust[i] = this.bgr[i] - ((this.bgr[i] - bgr[i]) / 8);
-                
-        }
-        if(!active) { // Update filter
-            for(int i = 0; i < 3; i++) {
-                if(adjust[i] != -1)
-                    this.bgr[i] = adjust[i];
-            }
-            return 0;
-        }
-        return ret;
-    }
-    
     ArrayList<Pixel> scan(ByteBuffer img, int wS, int nC, long frameTime, boolean[][] ignorePixels) {
         ArrayList<Pixel> impacts = new ArrayList<Pixel>();
         Pixel pixel;
+        adjustv = new int[] { 0, 0, 0 };
         for(int y = this.y; y < this.y + this.height; y++) {
             for(int x = this.x; x < this.x + this.width; x++) {
                 if(ignorePixels[x][y])
                     continue;
-                pixel = filter(this, x, y, frameTime, img, wS, nC, ignorePixels, null);
+                pixel = filter(x, y, frameTime, img, wS, nC, ignorePixels, null);
                 if(pixel != null)
                     impacts.add(pixel);
             }
+        }
+        
+        for(int i = 0; i < 3; i++) {
+            bgr[i] += adjustv[i] >> 2;
+            bgr[i]--;
         }
         if(!impacts.isEmpty()) {
             AtomicRNG.toOSrng(frameTime - lastImpact);
@@ -61,24 +41,36 @@ class ImageScanner {
         return impacts;
     }
     
-    private static Pixel filter(ImageScanner pixelGroup, int x, int y, long start, ByteBuffer buffer, int wS, int nC, boolean[][] ignore, Pixel pixel) {
+    int adjustv[] = null;
+    private Pixel filter(int x, int y, long start, ByteBuffer buffer, int wS, int nC, boolean[][] ignore, Pixel pixel) {
         ignore[x][y] = true;
         int index = (y * wS) + (x * nC);
         int[] bgr = new int[3];
         for(int i = 0; i < 3; i++)
             bgr[i] = buffer.get(index + i) & 0xFF;
-        int strength = pixelGroup.getStrength(bgr);
+        int strength = 0;
+        for(int i = 0; i < 3; i++) {
+            if(bgr[i] > this.bgr[i]) {
+                if(bgr[i] > this.bgr[i] + 5) {
+                    strength += bgr[i] - this.bgr[i] + 5;
+                    if(adjustv[i] < strength) {
+                        adjustv[i] = strength;
+                    }
+                } else
+                    this.bgr[i] = bgr[i] + 32;
+            }
+        }
         if(strength == 0 || AtomicRNG.firstRun)
             return pixel;
         if(pixel == null)
             pixel = new Pixel(x, y, strength, start);
         else
             pixel.charge(x, y, strength);
-        raytrace(pixelGroup, x, y, start, buffer, wS, nC, ignore, pixel);
+        raytrace(this, x, y, start, buffer, wS, nC, ignore, pixel);
         return pixel;
     }
     
-    private static void raytrace(ImageScanner pixelGroup, int x, int y, long start, ByteBuffer buffer, int wS, int nC, boolean[][] ignore, Pixel pixel) {
+    private static void raytrace(ImageScanner instance, int x, int y, long start, ByteBuffer buffer, int wS, int nC, boolean[][] ignore, Pixel pixel) {
         x -= 1;
         y -= 1;
         for(int ym = y; ym < y + 3; ym++) {
@@ -88,7 +80,7 @@ class ImageScanner {
                 if(xm < 0 || xm >= AtomicRNG.width)
                     continue;
                 if(!ignore[xm][ym])
-                    filter(pixelGroup, xm, ym, start, buffer, wS, nC, ignore, pixel);
+                    instance.filter(xm, ym, start, buffer, wS, nC, ignore, pixel);
             }
         }
     }
