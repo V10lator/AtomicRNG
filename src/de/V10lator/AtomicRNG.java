@@ -299,11 +299,15 @@ public class AtomicRNG {
     private static Font smallFont = new Font("Arial", Font.PLAIN, 8);
     private static void paintCross(Graphics g, Pixel pixel) {
         g.setColor(Color.RED);
-        int x = statXoffset +pixel.x;
-        g.drawLine(x - 5, pixel.y - 5, x + 5, pixel.y + 5);
-        g.drawLine(x + 5, pixel.y - 5, x - 5, pixel.y + 5);
+        int x = statXoffset + pixel.x;
+        
+        g.drawLine(x - 6, pixel.y, x - 2, pixel.y);
+        g.drawLine(x + 2, pixel.y, x + 6, pixel.y);
+        g.drawLine(x, pixel.y - 6, x, pixel.y - 2);
+        g.drawLine(x, pixel.y + 2, x, pixel.y + 6);
+        
         g.setFont(smallFont);
-        g.drawString(String.valueOf(pixel.power), x + 6, pixel.y + 4);
+        g.drawString(String.valueOf(pixel.power), x + 8, pixel.y + 3);
     }
 
     /**
