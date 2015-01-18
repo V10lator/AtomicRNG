@@ -58,7 +58,7 @@ public class AtomicRNG {
     private static int hashCount = 0;
     private static long byteCount = 0;
 
-    static PixelGroup[][] lastPixel;
+    static ImageScanner[][] lastPixel;
     private static FFmpegFrameRecorder videoOut = null;
     private static float ts = 0.0f;
 
@@ -538,13 +538,13 @@ public class AtomicRNG {
                     height = img.height();
                     int rows = height >> 5, columns = width >> 5;
                     int cw = width / columns, ch = height / rows, yi;
-                    lastPixel = new PixelGroup[rows][columns];
-                    PixelGroup[] entry;
+                    lastPixel = new ImageScanner[rows][columns];
+                    ImageScanner[] entry;
                     for(int y = 0; y < rows; y++) {
                         entry = lastPixel[y];
                         yi = y * ch;
                         for(int x = 0; x < columns; x++)
-                            entry[x] = new PixelGroup(x * cw, yi);
+                            entry[x] = new ImageScanner(x * cw, yi);
                     }
                         
                     /*
@@ -578,11 +578,11 @@ public class AtomicRNG {
                         ignoredPixels[x][y] = false;
                 ArrayList<Pixel>[] impacts = new ArrayList[(height >> 5) * (width >> 5)];
                 int c = 0;
-                PixelGroup.init(img.getByteBuffer(), img.widthStep(), img.nChannels(), start, ignoredPixels);
-                for(PixelGroup[] pga: lastPixel)
-                    for(PixelGroup pg: pga)
-                        impacts[c++] = pg.scan();
-                PixelGroup.cleanup();
+                ImageScanner.init(img.getByteBuffer(), img.widthStep(), img.nChannels(), start, ignoredPixels);
+                for(ImageScanner[] isa: lastPixel)
+                    for(ImageScanner is: isa)
+                        impacts[c++] = is.scan();
+                ImageScanner.cleanup();
                 
                 boolean impact = false;
                 for(ArrayList<Pixel> list: impacts)

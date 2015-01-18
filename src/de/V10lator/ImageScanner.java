@@ -3,7 +3,7 @@ package de.V10lator;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 
-class PixelGroup {
+class ImageScanner {
 
     private final int[] bgr = { 255, 255, 255 };
     private final int x, y, width, height;
@@ -16,10 +16,10 @@ class PixelGroup {
     private static boolean[][] tmp_ignore;
     private static ByteBuffer tmp_buffer;
     private static long tmp_start;
-    private static PixelGroup tmp_instance;
+    private static ImageScanner tmp_instance;
     
     
-    PixelGroup(int x, int y) {
+    ImageScanner(int x, int y) {
         this.x = x;
         this.y = y;
         width = AtomicRNG.width / (AtomicRNG.width >> 5);
