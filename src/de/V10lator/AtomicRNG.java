@@ -336,9 +336,21 @@ public class AtomicRNG {
     
     private static Font smallFont = new Font("Arial", Font.PLAIN, 9);
     private static void paintCross(Graphics g, Pixel pixel) {
-        g.setColor(Color.RED);
         int x = statXoffset + pixel.x;
         
+        float[][] cm = new float[width][height]; // TODO: Ugly hack for debugging.
+        for(Pixel sp: pixel.storage)
+            cm[sp.x][sp.y] += sp.power;
+        int c;
+        for(int xd = 0; xd < width; xd++)
+            for(int yd = 0; yd < height; yd++)
+                if(cm[xd][yd] > 0) {
+                    c = 255 - (int) (cm[xd][yd] / 3.0f);
+                    g.setColor(new Color(c, c, c));
+                    g.drawRect(xd, yd, 1, 1);
+                }
+        
+        g.setColor(Color.RED);
         g.drawOval(x - 7, pixel.y - 7, 14, 14);
         
         g.drawLine(x - 6, pixel.y, x - 4, pixel.y);
