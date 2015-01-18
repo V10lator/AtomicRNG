@@ -334,18 +334,20 @@ public class AtomicRNG {
         lastRandomImageSlice = System.currentTimeMillis();
     }
     
-    private static Font smallFont = new Font("Arial", Font.PLAIN, 8);
+    private static Font smallFont = new Font("Arial", Font.PLAIN, 9);
     private static void paintCross(Graphics g, Pixel pixel) {
         g.setColor(Color.RED);
         int x = statXoffset + pixel.x;
         
-        g.drawLine(x - 6, pixel.y, x - 2, pixel.y);
-        g.drawLine(x + 2, pixel.y, x + 6, pixel.y);
-        g.drawLine(x, pixel.y - 6, x, pixel.y - 2);
-        g.drawLine(x, pixel.y + 2, x, pixel.y + 6);
+        g.drawOval(x - 7, pixel.y - 7, 14, 14);
+        
+        g.drawLine(x - 6, pixel.y, x - 4, pixel.y);
+        g.drawLine(x + 4, pixel.y, x + 6, pixel.y);
+        g.drawLine(x, pixel.y - 6, x, pixel.y - 4);
+        g.drawLine(x, pixel.y + 4, x, pixel.y + 6);
         
         g.setFont(smallFont);
-        g.drawString(String.valueOf(pixel.power), x + 8, pixel.y + 3);
+        g.drawString(String.valueOf(pixel.power), x + 10, pixel.y + 4);
     }
 
     /**
