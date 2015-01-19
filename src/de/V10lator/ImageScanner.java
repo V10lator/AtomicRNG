@@ -55,20 +55,35 @@ class ImageScanner {
         int[] bgr = new int[3];
         for(int i = 0; i < 3; i++)
             bgr[i] = buffer.get(index + i) & 0xFF;
-        int strength = 0;
-        int f;
+        int strength = 0, f, h = 0, hc = 0;
+        /*
+         * First filter each color channel independently.
+         */
         for(int i = 0; i < 3; i++) {
             if(bgr[i] > bgr_filter[i]) {
                 f = bgr_filter[i] + 13;
-                if(bgr[i] > f)
+                if(bgr[i] > f) {
                     strength += bgr[i] - f;
+                    continue;
+                }
+                h += bgr[i] - bgr_filter[i];
+                hc++;
                 bgr_filter[i] = bgr[i];
                 adjust[i][1] = false;
             } else if(bgr[i] < bgr_filter[i])
                 adjust[i][0] = true;
         }
-        if(strength == 0 || AtomicRNG.firstRun)
+        if(AtomicRNG.firstRun)
             return pixel;
+        /*
+         * If that failes combine the channels and filter again.
+         * This is to eliminate blooming between the channels.
+         */
+        if(strength == 0) {
+            if(hc < 2 || h < 13)
+                return pixel;
+            strength = h - 13;
+        }
         if(pixel == null)
             pixel = new Pixel(x, y, strength, start);
         else
