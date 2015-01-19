@@ -318,7 +318,6 @@ public class AtomicRNG {
         graphics.setColor(Color.BLACK);
         graphics.fillRect(0, 0, width, height);
         long oldSeed = rand.nextLong();
-        float b;
         for(Pixel pixel: randomImagePixels) {
             rand.setSeed(pixel.power);
             img.setRGB(pixel.x, pixel.y, new Color(rand.nextInt(256), rand.nextInt(256), rand.nextInt(256)).getRGB());
@@ -338,19 +337,6 @@ public class AtomicRNG {
     private static void paintCross(Graphics g, Pixel pixel) {
         int x = statXoffset + pixel.x;
         
-        float[][] cm = new float[width][height]; // TODO: Ugly hack for debugging.
-        for(Pixel sp: pixel.storage)
-            cm[sp.x][sp.y] += sp.power;
-        int c;
-        for(int xd = 0; xd < width; xd++)
-            for(int yd = 0; yd < height; yd++)
-                if(cm[xd][yd] > 0) {
-                    c = 255 - (int) (cm[xd][yd] / 3.0f);
-                    g.setColor(new Color(c, c, c));
-                    g.drawRect(xd, yd, 1, 1);
-                }
-        
-        g.setColor(Color.RED);
         g.drawOval(x - 7, pixel.y - 7, 14, 14);
         
         g.drawLine(x - 6, pixel.y, x - 4, pixel.y);
@@ -598,7 +584,7 @@ public class AtomicRNG {
                 if(firstRun) {
                     width = img.width();
                     height = img.height();
-                    int rows = height >> 5, columns = width >> 5;
+                    int rows = height >> 6, columns = width >> 6;
                     int cw = width / columns, ch = height / rows, yi;
                     scanners = new ImageScanner[rows][columns];
                     for(int y = 0; y < rows; y++) {
@@ -642,7 +628,7 @@ public class AtomicRNG {
                 for(int x = 0; x < width; x++)
                     for(int y = 0; y < height; y++)
                         ignoredPixels[x][y] = false;
-                ArrayList<Pixel>[] impacts = new ArrayList[(height >> 5) * (width >> 5)];
+                ArrayList<Pixel>[] impacts = new ArrayList[(height >> 6) * (width >> 6)];
                 int c = 0;
                 for(ImageScanner[] isa: scanners)
                     for(ImageScanner is: isa)
@@ -668,6 +654,8 @@ public class AtomicRNG {
                 if(!quiet) {
                     Iterator<Pixel> iter = crosses.iterator();
                     Pixel pix;
+                    graphics.setColor(Color.RED);
+                    //boolean imp = false;
                     while(iter.hasNext()) {
                         pix = iter.next();
                         if(start - pix.found > 2000L) {
@@ -675,7 +663,19 @@ public class AtomicRNG {
                             continue;
                         }
                         paintCross(graphics, pix);
+                        //imp = true;
                     }
+                    /* TODO: Debugging stuff
+                    if(imp)
+                        try {
+                            String fn = String.valueOf(in++);
+                            while(fn.length() < 5)
+                                fn = "0"+fn;
+                            File out = new File("debug/"+fn+".png");
+                            ImageIO.write(statImg, "png", out);
+                        } catch(IOException e) {
+                            e.printStackTrace();
+                        }*/
                 }
                 /*
                  * Write the yellow, transparent text onto the window and update it.
@@ -732,6 +732,7 @@ public class AtomicRNG {
             } catch (InterruptedException e) {}
         }
     }
+    //static int in = 0;
 
     static boolean isVideoButton(int x, int y) {
         int vX = statXoffset + width - 25;

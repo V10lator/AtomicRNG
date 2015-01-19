@@ -7,17 +7,13 @@ class ImageScanner {
 
     private final int x, y;
     private static final int width, height;
-    private static final int[][][] lastValues;
+//    private static final int[][][] lastValues;
+    private final int[] bgr_filter = { 255, 255, 255 };
     long lastImpact = System.currentTimeMillis();
     
     static {
-        lastValues = new int[AtomicRNG.width][AtomicRNG.height][3];
-        width = AtomicRNG.width / (AtomicRNG.width >> 5);
-        height = AtomicRNG.height / (AtomicRNG.height >> 5);
-        for(int x = 0; x < AtomicRNG.width; x++)
-            for(int y = 0; y < AtomicRNG.height; y++)
-                for(int i = 0; i < 3; i++)
-                    lastValues[x][y][i] = 255;
+        width = AtomicRNG.width / (AtomicRNG.width >> 6);
+        height = AtomicRNG.height / (AtomicRNG.height >> 6);
     }
     
     ImageScanner(int x, int y) {
@@ -25,9 +21,14 @@ class ImageScanner {
         this.y = y;
     }
     
+    private boolean adjust[][] = new boolean[3][2];
     ArrayList<Pixel> scan(ByteBuffer img, int wS, int nC, long frameTime, boolean[][] ignorePixels) {
         ArrayList<Pixel> impacts = new ArrayList<Pixel>();
         Pixel pixel;
+        for(int i = 0; i < 3; i++) {
+            adjust[i][0] = false;
+            adjust[i][1] = true;
+        }
         for(int y = this.y; y < this.y + height; y++) {
             for(int x = this.x; x < this.x + width; x++) {
                 if(ignorePixels[x][y])
@@ -37,6 +38,10 @@ class ImageScanner {
                     impacts.add(pixel);
             }
         }
+        for(int i = 0; i < 3; i++)
+            if(adjust[i][0])
+                if(adjust[i][1])
+                    bgr_filter[i]--;
         if(!impacts.isEmpty()) {
             AtomicRNG.toOSrng(frameTime - lastImpact);
             lastImpact = frameTime;
@@ -51,13 +56,16 @@ class ImageScanner {
         for(int i = 0; i < 3; i++)
             bgr[i] = buffer.get(index + i) & 0xFF;
         int strength = 0;
+        int f;
         for(int i = 0; i < 3; i++) {
-            if(bgr[i] > lastValues[x][y][i]) {
-                if(bgr[i] > lastValues[x][y][i] + 16)
-                    strength += bgr[i] - lastValues[x][y][i] + 16;
-                lastValues[x][y][i] = bgr[i];
-            } else
-                lastValues[x][y][i]--;
+            if(bgr[i] > bgr_filter[i]) {
+                f = bgr_filter[i] + 13;
+                if(bgr[i] > f)
+                    strength += bgr[i] - f;
+                bgr_filter[i] = bgr[i];
+                adjust[i][1] = false;
+            } else if(bgr[i] < bgr_filter[i])
+                adjust[i][0] = true;
         }
         if(strength == 0 || AtomicRNG.firstRun)
             return pixel;
