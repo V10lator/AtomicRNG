@@ -20,23 +20,16 @@ import java.awt.Graphics;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileDescriptor;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.attribute.FileAttribute;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.jar.JarFile;
 
 import javax.imageio.ImageIO;
 
@@ -46,9 +39,6 @@ import org.bytedeco.javacv.OpenCVFrameGrabber;
 import org.bytedeco.javacpp.avcodec;
 import org.bytedeco.javacpp.avutil;
 import org.bytedeco.javacpp.opencv_core.IplImage;
-
-import com.sun.jna.Memory;
-import com.sun.jna.Pointer;
 
 public class AtomicRNG {
     private static OpenCVFrameGrabber atomicRNGDevice;
@@ -76,34 +66,7 @@ public class AtomicRNG {
     private static long randomImageNumber = 0L;
     private static long lastRandomImageSlice;
     
-    private static final ByteBuffer[] longBuffers = { ByteBuffer.allocate(64), ByteBuffer.allocate(64) };
-    
     static boolean stopped = false;
-    
-    private static final Field __fd;
-    static {
-        Field _fd;
-        try {
-            _fd = FileDescriptor.class.getDeclaredField("fd");
-            _fd.setAccessible(true);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            _fd = null;
-            System.exit(1);
-        }   
-        __fd = _fd;
-    }   
-    
-    private static int rFDC = -1;
-    static int getRealFileDescriptor(FileDescriptor fd) {
-        if(rFDC == -1)
-            try {
-                rFDC = __fd.getInt(fd);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        return rFDC;
-    }
     
     private static MessageDigest md;
     /**
@@ -147,35 +110,10 @@ public class AtomicRNG {
          */
         if(rand.nextInt(100) < 5) {
             rand.setSeed(ByteBuffer.wrap(bytes).getLong());
-            longBuffers[0].clear();
             return;
         }
-        Pointer pointer = new Memory(bytes.length);
-        pointer.write(0, bytes, 0, bytes.length);
-        /*
-         * Write the result to /dev/random and update the statistics.
-         */
-        toOSrng(pointer, true);
-        pointer.clear(bytes.length);
+        EntropyQueue.add(bytes);
         byteCount += bytes.length;
-        longBuffers[0].clear();
-    }
-    
-    static boolean toOSrng(Pointer pointer, boolean addToQueueIfNeeded) {
-        boolean error;
-        try {
-            error = LibCwrapper.ioctl(getRealFileDescriptor(osRNG.getFD()), LibCwrapper.RNDADDENTROPY, pointer) != 0;
-        } catch (IOException e) {
-            e.printStackTrace();
-            error = true;
-        }
-        if(error && addToQueueIfNeeded) {
-            Pointer copy = new Memory(4L);
-            for(int i = 0; i < 4; i++)
-                copy.setByte(i, pointer.getByte(i)); // TODO: Improve. copy.setPointer() doesn't work.
-            EntropyQueue.add(copy);
-        }
-        return !error;
     }
 
     /**
