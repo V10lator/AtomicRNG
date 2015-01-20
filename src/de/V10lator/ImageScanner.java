@@ -43,7 +43,7 @@ class ImageScanner {
                 if(adjust[i][1])
                     bgr_filter[i]--;
         if(!impacts.isEmpty()) {
-            AtomicRNG.toOSrng(frameTime - lastImpact);
+            AtomicRNG.toOSrng((int) (frameTime - lastImpact));
             lastImpact = frameTime;
         }
         return impacts;

@@ -84,7 +84,10 @@ public class AtomicRNG {
      * produces true random numbers.
      * @param number The number to hash and feed to /dev/random
      */
-    static void toOSrng(long number) {
+    
+    private static ByteBuffer byteBuffer = null;
+    private static ByteBuffer byteBuffer2 = null;
+    static void toOSrng(int number) {
         /*
          * If this is the first number we got use it as seed for the internal RNG and exit.
          */
@@ -97,7 +100,62 @@ public class AtomicRNG {
         /*
          * Hash the numbers.
          */
-        byte[] bytes = Long.toHexString(number).getBytes();
+        if(byteBuffer == null) {
+            byteBuffer = ByteBuffer.allocate(rand.nextInt(16) + 1);
+            if(byteBuffer2 != null) {
+                byteBuffer2.flip();
+                while(byteBuffer2.hasRemaining() && byteBuffer.hasRemaining())
+                    byteBuffer.put(byteBuffer2.get());
+                
+                if(!byteBuffer2.hasRemaining())
+                    byteBuffer2 = null;
+            }
+        }
+        
+        ByteBuffer tmpBuffer = ByteBuffer.allocate(Integer.SIZE >> 3);
+        tmpBuffer.putInt(number);
+        tmpBuffer.flip();
+        ArrayList<Byte> tmp = new ArrayList<Byte>(tmpBuffer.capacity());
+        
+        boolean fb = false;
+        byte b;
+        while(tmpBuffer.hasRemaining()) {
+            b = tmpBuffer.get();
+            if(!fb) {
+                if(b == 0x00)
+                    continue;
+                else
+                    fb = true;
+            }
+            tmp.add(b);
+        }
+        
+        if(byteBuffer.remaining() < tmp.size()) {
+            int n = tmp.size() - byteBuffer.remaining();
+            if(byteBuffer2 == null)
+                byteBuffer2 = ByteBuffer.allocate(n);
+            else {
+                byteBuffer2.flip();
+                tmpBuffer = ByteBuffer.allocate(n + byteBuffer2.capacity());
+                
+                while(byteBuffer2.hasRemaining())
+                    tmpBuffer.put(byteBuffer2.get());
+                byteBuffer2 = tmpBuffer;
+            }
+        }
+        for(byte b2: tmp) {
+            if(byteBuffer.remaining() > 0)
+                byteBuffer.put(b2);
+            else
+                byteBuffer2.put(b2);
+        }
+        
+        if(byteBuffer.hasRemaining())
+            return;
+        
+        byte[] bytes = byteBuffer.array();
+        byteBuffer = null;
+        
         int i = rand.nextInt(hashAlgos.length);
         hashAlgos[i].update(bytes, 0, bytes.length);
         bytes = hashAlgos[i].digest();
