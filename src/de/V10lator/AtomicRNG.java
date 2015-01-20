@@ -14,6 +14,10 @@
  */
 package de.V10lator;
 
+import gnu.crypto.hash.BaseHash;
+import gnu.crypto.hash.Sha512;
+import gnu.crypto.hash.Whirlpool;
+
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics;
@@ -24,8 +28,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Random;
@@ -68,7 +70,8 @@ public class AtomicRNG {
     
     static boolean stopped = false;
     
-    private static MessageDigest md;
+    private static BaseHash[] hashAlgos = { new Sha512(), new Whirlpool() };
+    
     /**
      * This hashes the number with a hashing algorithm based on xxHash:<br>
      * First the number is hashed with a random seed. After that it's
@@ -95,13 +98,15 @@ public class AtomicRNG {
          * Hash the numbers.
          */
         byte[] bytes = Long.toHexString(number).getBytes();
-        bytes = md.digest(bytes);
-        md.reset();
+        int i = rand.nextInt(hashAlgos.length);
+        hashAlgos[i].update(bytes, 0, bytes.length);
+        bytes = hashAlgos[i].digest();
+        hashAlgos[i].reset();
         hashCount++;
         /*
          * From time to time use the result to re-seed the internal RNG and exit.
          */
-        if(rand.nextInt(100) < 5) {
+        if(rand.nextInt(100) < 10) {
             rand.setSeed(ByteBuffer.wrap(bytes).getLong());
             return;
         }
@@ -343,13 +348,6 @@ public class AtomicRNG {
          * Tell the user we're going to initialize the ARV device.
          */
         System.out.print("Initializing Alpha Ray Visualizer... ");
-        
-        try {
-            md = MessageDigest.getInstance("SHA-512");
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-            System.exit(1);
-        }
         
         /*
          * Extract native libraries for use with JNA
