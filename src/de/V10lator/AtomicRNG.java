@@ -95,15 +95,8 @@ public class AtomicRNG {
          * Hash the numbers.
          */
         byte[] bytes = Long.toHexString(number).getBytes();
-        if(md == null) {
-            try {
-                md = MessageDigest.getInstance("SHA-512");
-            } catch (NoSuchAlgorithmException e) {
-                e.printStackTrace();
-                System.exit(1);
-            }
-        }
         bytes = md.digest(bytes);
+        md.reset();
         hashCount++;
         /*
          * From time to time use the result to re-seed the internal RNG and exit.
@@ -350,6 +343,13 @@ public class AtomicRNG {
          * Tell the user we're going to initialize the ARV device.
          */
         System.out.print("Initializing Alpha Ray Visualizer... ");
+        
+        try {
+            md = MessageDigest.getInstance("SHA-512");
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
         
         /*
          * Extract native libraries for use with JNA

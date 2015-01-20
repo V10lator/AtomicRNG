@@ -3,13 +3,11 @@ package de.V10lator;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileDescriptor;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.sun.jna.Memory;
@@ -18,9 +16,10 @@ import com.sun.jna.Pointer;
 class EntropyQueue extends Thread {
 
     private static final AtomicBoolean lock = new AtomicBoolean(false);
-    private static List<Pointer> queue = new ArrayList<Pointer>();
+    private static final ArrayList<Pointer> queue = new ArrayList<Pointer>();
     private static final long maxEntropy;
     private static final Pointer window = new Memory(4L);
+    private static final int min_queue_size;
     
     private static final Field __fd;
     static {
@@ -34,9 +33,19 @@ class EntropyQueue extends Thread {
             System.exit(1);
         }   
         __fd = _fd;
-    }
-    
-    static {
+/*        File d = new File("random.sample");
+        if(d.exists())
+            d.delete();
+        FileOutputStream tf = null;
+        try {
+            d.createNewFile();
+            tf = new FileOutputStream(d);
+        } catch (Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        f = tf;*/
+        
         long maxEnt = 4096;
         File f = new File("/proc/sys/kernel/random/poolsize");
         if(f.exists() && !f.isDirectory() && f.canRead()) {
@@ -53,6 +62,7 @@ class EntropyQueue extends Thread {
                 } catch (IOException e) {}
         }
         maxEntropy = maxEnt;
+        min_queue_size = (int)(maxEnt >> 3);
         new EntropyQueue().start();
     }
     
@@ -70,22 +80,10 @@ class EntropyQueue extends Thread {
                 try {
                     Thread.sleep(2L);
                 } catch (InterruptedException e) {}
-            if(queue.isEmpty()) {
+            if(queue.size() < min_queue_size) { // Ensure min capacity.
                 lock.set(false);
                 continue;
             }
-            
-            int r;
-            Pointer[] newQueue = new Pointer[queue.size()];
-            for(Pointer p: queue)
-                while(true) {
-                    r = AtomicRNG.rand.nextInt(queue.size());
-                    if(newQueue[r] != null)
-                        continue;
-                    newQueue[r] = p;
-                    break;
-                }
-            
             int ret;
             try {
                 if((ret = LibCwrapper.ioctl(getRealFileDescriptor(AtomicRNG.osRNG.getFD()), LibCwrapper.RNDGETENTCNT, window)) != 0) {
@@ -100,20 +98,27 @@ class EntropyQueue extends Thread {
             }
             long entropyAvail = window.getInt(0) & 0xffffffffL;
             window.clear(4L);
-            long free = maxEntropy - entropyAvail;
-            queue = new ArrayList<Pointer>(Arrays.asList(newQueue));
-            Iterator<Pointer> iter = queue.iterator();
-            Memory pointer;
-            while(iter.hasNext()) {
-                pointer = (Memory) iter.next();
-                if(free < pointer.size())
-                    continue;
-                if(toOSrng(pointer)) {
-                    iter.remove();
-                    free -= pointer.size();
-                    pointer.clear(pointer.size());
-                } else
+            int free = (int) (maxEntropy - entropyAvail);
+            
+            int r;
+            Pointer[] newQueue = new Pointer[queue.size()];
+            for(Pointer p: queue)
+                while(true) {
+                    r = AtomicRNG.rand.nextInt(queue.size());
+                    if(newQueue[r] != null)
+                        continue;
+                    newQueue[r] = p;
                     break;
+                }
+            queue.clear();
+            queue.ensureCapacity(min_queue_size + newQueue.length - free);
+            r = 0;
+            for(Pointer p: newQueue) {
+                if(newQueue.length - r++ > 512 && free > 0 && toOSrng(p)) {
+                    free--;
+                    p.clear(1L);
+                } else
+                    queue.add(p);
             }
             lock.set(false);
         }
@@ -129,14 +134,25 @@ class EntropyQueue extends Thread {
         Pointer p;
         for(int i = 0; i < bytes.length; i++) {
             p = new Memory(1L);
+            p.setByte(0, bytes[i]);
             queue.add(p);
         }
         lock.set(false);
     }
     
+    //static FileOutputStream f;
     private static boolean toOSrng(Pointer pointer) {
+    /*    try {
+            f.write(pointer.getByte(0));
+            f.flush();
+        } catch (IOException e1) {
+            // TODO Auto-generated catch block
+            e1.printStackTrace();
+        }*/
         try {
-            return LibCwrapper.ioctl(getRealFileDescriptor(AtomicRNG.osRNG.getFD()), LibCwrapper.RNDADDENTROPY, pointer) == 0;
+            int nRet = LibCwrapper.ioctl(getRealFileDescriptor(AtomicRNG.osRNG.getFD()), LibCwrapper.RNDADDENTROPY, pointer);
+            System.out.println("IOCTL: "+nRet);
+            return nRet > -1;
         } catch (IOException e) {
             e.printStackTrace();
             return false;
