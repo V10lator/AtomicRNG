@@ -24,7 +24,6 @@ import java.awt.Graphics;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
@@ -44,7 +43,6 @@ import org.bytedeco.javacpp.opencv_core.IplImage;
 
 public class AtomicRNG {
     private static OpenCVFrameGrabber atomicRNGDevice;
-    static FileOutputStream osRNG = null;
     private static String version;
 
     static Random rand = new Random();
@@ -85,8 +83,16 @@ public class AtomicRNG {
      * @param number The number to hash and feed to /dev/random
      */
     
-    private static ByteBuffer byteBuffer = null;
-    private static ByteBuffer byteBuffer2 = null;
+    //private static ByteBuffer byteBuffer = null;
+    //private static ByteBuffer byteBuffer2 = null;
+    
+    private static void addZeroesToHash() {
+        while(rand.nextInt(100) < 10)
+            hash.update((byte) 0);
+    }
+    
+    private static BaseHash hash;
+    private static int co = 0;
     static void toOSrng(int number) {
         /*
          * If this is the first number we got use it as seed for the internal RNG and exit.
@@ -100,22 +106,12 @@ public class AtomicRNG {
         /*
          * Hash the numbers.
          */
-        if(byteBuffer == null) {
-            byteBuffer = ByteBuffer.allocate(rand.nextInt(16) + 1);
-            if(byteBuffer2 != null) {
-                byteBuffer2.flip();
-                while(byteBuffer2.hasRemaining() && byteBuffer.hasRemaining())
-                    byteBuffer.put(byteBuffer2.get());
-                
-                if(!byteBuffer2.hasRemaining())
-                    byteBuffer2 = null;
-            }
-        }
+        if(hash == null)
+            hash = hashAlgos[rand.nextInt(hashAlgos.length)];
         
         ByteBuffer tmpBuffer = ByteBuffer.allocate(Integer.SIZE >> 3);
         tmpBuffer.putInt(number);
         tmpBuffer.flip();
-        ArrayList<Byte> tmp = new ArrayList<Byte>(tmpBuffer.capacity());
         
         boolean fb = false;
         byte b;
@@ -127,44 +123,23 @@ public class AtomicRNG {
                 else
                     fb = true;
             }
-            tmp.add(b);
+            addZeroesToHash();
+            hash.update(b);
+            co++;
         }
         
-        if(byteBuffer.remaining() < tmp.size()) {
-            int n = tmp.size() - byteBuffer.remaining();
-            if(byteBuffer2 == null)
-                byteBuffer2 = ByteBuffer.allocate(n);
-            else {
-                byteBuffer2.flip();
-                tmpBuffer = ByteBuffer.allocate(n + byteBuffer2.capacity());
-                
-                while(byteBuffer2.hasRemaining())
-                    tmpBuffer.put(byteBuffer2.get());
-                byteBuffer2 = tmpBuffer;
-            }
-        }
-        for(byte b2: tmp) {
-            if(byteBuffer.remaining() > 0)
-                byteBuffer.put(b2);
-            else
-                byteBuffer2.put(b2);
-        }
-        
-        if(byteBuffer.hasRemaining())
+        if(rand.nextInt(100) > 10)
             return;
+        co = 0;
+        byte[] bytes = hash.digest();
+        hash.reset();
+        hash = null;
         
-        byte[] bytes = byteBuffer.array();
-        byteBuffer = null;
-        
-        int i = rand.nextInt(hashAlgos.length);
-        hashAlgos[i].update(bytes, 0, bytes.length);
-        bytes = hashAlgos[i].digest();
-        hashAlgos[i].reset();
         hashCount++;
         /*
          * From time to time use the result to re-seed the internal RNG and exit.
          */
-        if(rand.nextInt(100) < 10) {
+        if(rand.nextInt(100) < 1) {
             rand.setSeed(ByteBuffer.wrap(bytes).getLong());
             return;
         }
@@ -237,19 +212,13 @@ public class AtomicRNG {
             System.out.print(System.lineSeparator()+
                     "Cleaning up... ");
             stopped = true;
+            EntropyQueue.cleanup();
             /*
              * Flush and close /dev/random.
              */
             if(!getLock(true)) { // Assume crash
                 System.err.println("error!");
                 return;          // And do nothing;
-            }
-            if(osRNG != null) {
-                try {
-                    osRNG.close();
-                } catch(IOException e) {
-                    e.printStackTrace();
-                }
             }
             if(videoOut != null) {
                 lock.set(false);
@@ -490,24 +459,7 @@ public class AtomicRNG {
          *  Open the Linux RNG and keep it open all the time.
          *  We close it in Cleanup().run().
          */
-        File osRNGfile = new File("/dev/random");
-        if(!osRNGfile.exists() || osRNGfile.isDirectory() || !osRNGfile.canWrite()) { // isDirectory() cause isFile() returns false.
-            System.out.println("error ("+osRNGfile.exists()+"/"+(!osRNGfile.isDirectory())+"/"+osRNGfile.canWrite()+") !");
-            System.exit(1);
-        }
-        getLock(false);
-        try {
-            osRNG = new FileOutputStream(osRNGfile);
-            byte[] dummy = new byte[1];
-            rand.nextBytes(dummy);
-            osRNG.write(dummy); // we need this to get the file descriptor.
-            osRNG.flush();
-        } catch (IOException e) {
-            System.out.println("error!");
-            e.printStackTrace();
-            System.exit(1);
-        }
-        lock.set(false);
+        EntropyQueue.resetOSrng();
         new EntropyQueue().start();
 
         /*

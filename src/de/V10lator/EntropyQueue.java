@@ -20,6 +20,7 @@ class EntropyQueue extends Thread {
     private static final ArrayList<Pointer> queue = new ArrayList<Pointer>();
     private static final long maxEntropy;
     private static final Pointer window = new Memory(4L);
+    private static FileOutputStream osRNG = null;
     
     private static final Field __fd;
     static {
@@ -87,7 +88,7 @@ class EntropyQueue extends Thread {
             }
             int ret;
             try {
-                if((ret = LibCwrapper.ioctl(getRealFileDescriptor(AtomicRNG.osRNG.getFD()), LibCwrapper.RNDGETENTCNT, window)) != 0) {
+                if((ret = LibCwrapper.ioctl(getRealFileDescriptor(osRNG.getFD()), LibCwrapper.RNDGETENTCNT, window)) != 0) {
                     System.err.println("ioctl RNDGETENTCNT returned "+ret);
                     lock.set(false);
                     continue;
@@ -103,7 +104,6 @@ class EntropyQueue extends Thread {
                 entropyAvail++;
             window.clear(4L);
             int free = (int) (maxEntropy - entropyAvail);
-            int fb = free;
             if(free > 0) {
                 Iterator<Pointer> iter = queue.iterator();
                 while(iter.hasNext()) {
@@ -112,7 +112,6 @@ class EntropyQueue extends Thread {
                     iter.remove();
                 }
             }
-            free++;
             lock.set(false);
         }
     }
@@ -136,7 +135,7 @@ class EntropyQueue extends Thread {
     static FileOutputStream f = null;
     private static boolean toOSrng(Pointer pointer) {
         try {
-            int nRet = LibCwrapper.ioctl(getRealFileDescriptor(AtomicRNG.osRNG.getFD()), LibCwrapper.RNDADDENTROPY, pointer);
+            int nRet = LibCwrapper.ioctl(getRealFileDescriptor(osRNG.getFD()), LibCwrapper.RNDADDENTROPY, pointer);
             if(nRet > -1) {
                 if(f != null)
                     try {
@@ -146,22 +145,58 @@ class EntropyQueue extends Thread {
                         e.printStackTrace();
                     }
                 return true;
+            } else {
+                System.out.println("Error: Ioctl returned "+nRet+System.lineSeparator()+
+                        "This could be a race condition and should happen rarely only."+System.lineSeparator()+
+                        "Will try again in 2 ms.");
             }
         } catch (IOException e) {
             e.printStackTrace();
-            return false;
         }
+        resetOSrng();
         return false;
     }
     
-    private static int rFDC = -1;
+    static void resetOSrng() {
+        try {
+            byte[] dummy = new byte[1];
+            AtomicRNG.rand.nextBytes(dummy);
+            if(osRNG != null)
+                try {
+                    osRNG.close();
+                } catch (IOException e) {}
+            File osRNGfile = new File("/dev/random");
+            if(!osRNGfile.exists() || osRNGfile.isDirectory() || !osRNGfile.canWrite()) { // isDirectory() cause isFile() returns false.
+                System.out.println("error ("+osRNGfile.exists()+"/"+(!osRNGfile.isDirectory())+"/"+osRNGfile.canWrite()+") !");
+                System.exit(1);
+            }
+            osRNG = new FileOutputStream(osRNGfile);
+            osRNG.write(dummy); // we need this to get the file descriptor.
+            osRNG.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
+    }
+    
     static int getRealFileDescriptor(FileDescriptor fd) {
-        if(rFDC == -1)
+        try {
+            return __fd.getInt(fd);
+        } catch (IllegalArgumentException | IllegalAccessException e) {}
+        return -1;
+    }
+    
+    static void cleanup() {
+        while(!lock.compareAndSet(false, true))
+            continue;
+        queue.clear();
+        if(osRNG != null)
             try {
-                rFDC = __fd.getInt(fd);
-            } catch (Exception e) {
+                osRNG.close();
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
                 e.printStackTrace();
             }
-        return rFDC;
+        lock.set(false);
     }
 }
