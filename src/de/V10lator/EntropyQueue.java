@@ -151,7 +151,6 @@ class EntropyQueue extends Thread {
         }*/
         try {
             int nRet = LibCwrapper.ioctl(getRealFileDescriptor(AtomicRNG.osRNG.getFD()), LibCwrapper.RNDADDENTROPY, pointer);
-            System.out.println("IOCTL: "+nRet);
             return nRet > -1;
         } catch (IOException e) {
             e.printStackTrace();
