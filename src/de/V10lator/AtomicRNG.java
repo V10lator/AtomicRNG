@@ -200,6 +200,13 @@ public class AtomicRNG {
                 lock.set(false);
             if(randomImageNumber > 0)
                 toggleRandomImage();
+            if(EntropyQueue.f != null)
+                try {
+                    EntropyQueue.f.flush();
+                    EntropyQueue.f.close();
+                } catch(IOException e) {
+                    e.printStackTrace();
+                }
             try {
                 Thread.sleep(20L);
             } catch (InterruptedException e) {
@@ -324,6 +331,9 @@ public class AtomicRNG {
             case("-q"):
                 quiet = true;
                 break;
+            case("-f"):
+                EntropyQueue.fileInit();
+                break;
             case("-d"):
                 doubleView = true;
                 break;
@@ -334,6 +344,7 @@ public class AtomicRNG {
             case "-h":
                 System.out.println("Arguments:"+System.lineSeparator()+
                         " -q  : Be quiet."+System.lineSeparator()+
+                        " -f  : File output."+System.lineSeparator()+
                         //                            " -ef : Enable experimental filter."+System.lineSeparator()+
                         " -v  : Enable video recorder."+System.lineSeparator()+
                         " -h  : Show this help."+System.lineSeparator());

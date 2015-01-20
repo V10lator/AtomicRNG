@@ -33,18 +33,6 @@ class EntropyQueue extends Thread {
             System.exit(1);
         }   
         __fd = _fd;
-/*        File d = new File("random.sample");
-        if(d.exists())
-            d.delete();
-        FileOutputStream tf = null;
-        try {
-            d.createNewFile();
-            tf = new FileOutputStream(d);
-        } catch (Exception e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-        f = tf;*/
         
         long maxEnt = 4096;
         File f = new File("/proc/sys/kernel/random/poolsize");
@@ -67,6 +55,21 @@ class EntropyQueue extends Thread {
     }
     
     private EntropyQueue() {}
+    
+    static void fileInit() {
+        File d = new File("random.sample");
+        if(d.exists())
+            d.delete();
+        FileOutputStream tf = null;
+        try {
+            d.createNewFile();
+            tf = new FileOutputStream(d);
+        } catch (Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        f = tf;
+    }
     
     @Override
     public void run() {
@@ -140,22 +143,25 @@ class EntropyQueue extends Thread {
         lock.set(false);
     }
     
-    //static FileOutputStream f;
+    static FileOutputStream f = null;
     private static boolean toOSrng(Pointer pointer) {
-    /*    try {
-            f.write(pointer.getByte(0));
-            f.flush();
-        } catch (IOException e1) {
-            // TODO Auto-generated catch block
-            e1.printStackTrace();
-        }*/
         try {
             int nRet = LibCwrapper.ioctl(getRealFileDescriptor(AtomicRNG.osRNG.getFD()), LibCwrapper.RNDADDENTROPY, pointer);
-            return nRet > -1;
+            if(nRet > -1) {
+                if(f != null)
+                    try {
+                        f.write(pointer.getByte(0));
+                        f.flush();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                return true;
+            }
         } catch (IOException e) {
             e.printStackTrace();
             return false;
         }
+        return false;
     }
     
     private static int rFDC = -1;
