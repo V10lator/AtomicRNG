@@ -332,7 +332,8 @@ public class AtomicRNG {
                 quiet = true;
                 break;
             case("-f"):
-                EntropyQueue.fileInit();
+                if(EntropyQueue.f == null) // No multiple inits for multiple args.
+                    EntropyQueue.fileInit();
                 break;
             case("-d"):
                 doubleView = true;
