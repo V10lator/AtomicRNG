@@ -8,6 +8,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.sun.jna.Memory;
@@ -103,25 +104,13 @@ class EntropyQueue extends Thread {
             window.clear(4L);
             int free = (int) (maxEntropy - entropyAvail);
             
-            int r;
-            Pointer[] newQueue = new Pointer[queue.size()];
-            for(Pointer p: queue)
-                while(true) {
-                    r = AtomicRNG.rand.nextInt(queue.size());
-                    if(newQueue[r] != null)
-                        continue;
-                    newQueue[r] = p;
-                    break;
-                }
-            queue.clear();
-            queue.ensureCapacity(min_queue_size + newQueue.length - free);
-            r = 0;
-            for(Pointer p: newQueue) {
-                if(newQueue.length - r++ > 512 && free > 0 && toOSrng(p)) {
+            Iterator<Pointer> iter = queue.iterator();
+            while(iter.hasNext()) {
+                if(free > 0 && toOSrng(iter.next())) {
                     free--;
-                    p.clear(1L);
+                    iter.remove();
                 } else
-                    queue.add(p);
+                    break;
             }
             lock.set(false);
         }
