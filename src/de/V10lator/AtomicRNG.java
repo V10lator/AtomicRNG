@@ -508,6 +508,7 @@ public class AtomicRNG {
             System.exit(1);
         }
         lock.set(false);
+        new EntropyQueue().start();
 
         /*
          * In case we should draw the window initialize it and set its title.

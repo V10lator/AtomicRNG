@@ -20,7 +20,6 @@ class EntropyQueue extends Thread {
     private static final ArrayList<Pointer> queue = new ArrayList<Pointer>();
     private static final long maxEntropy;
     private static final Pointer window = new Memory(4L);
-    private static final int min_queue_size;
     
     private static final Field __fd;
     static {
@@ -51,11 +50,9 @@ class EntropyQueue extends Thread {
                 } catch (IOException e) {}
         }
         maxEntropy = maxEnt;
-        min_queue_size = (int)(maxEnt >> 3);
-        new EntropyQueue().start();
     }
     
-    private EntropyQueue() {}
+    EntropyQueue() {}
     
     static void fileInit() {
         File d = new File("random.sample");
@@ -84,7 +81,7 @@ class EntropyQueue extends Thread {
                 try {
                     Thread.sleep(2L);
                 } catch (InterruptedException e) {}
-            if(queue.size() < min_queue_size) { // Ensure min capacity.
+            if(queue.isEmpty()) {
                 lock.set(false);
                 continue;
             }
@@ -100,18 +97,22 @@ class EntropyQueue extends Thread {
                 lock.set(false);
                 continue;
             }
-            long entropyAvail = window.getInt(0) & 0xffffffffL;
+            long entropyBitsAvail = (window.getInt(0) & 0xffffffffL);
+            long entropyAvail = entropyBitsAvail >> 3;
+            if(entropyBitsAvail % 8 != 0)
+                entropyAvail++;
             window.clear(4L);
             int free = (int) (maxEntropy - entropyAvail);
-            
-            Iterator<Pointer> iter = queue.iterator();
-            while(iter.hasNext()) {
-                if(free > 0 && toOSrng(iter.next())) {
-                    free--;
+            int fb = free;
+            if(free > 0) {
+                Iterator<Pointer> iter = queue.iterator();
+                while(iter.hasNext()) {
+                    if(free-- == 0 || !toOSrng(iter.next()))
+                        break;
                     iter.remove();
-                } else
-                    break;
+                }
             }
+            free++;
             lock.set(false);
         }
     }
