@@ -125,6 +125,10 @@ public class AtomicRNG {
             addZeroesToHash();
             hash.update(b);
         }
+        if(!fb) { // We removed all bytes, so the number we got was zero, re-add.
+            addZeroesToHash();
+            hash.update((byte) 0x00);
+        }
         
         if(rand.nextInt(100) > 10)
             return;
