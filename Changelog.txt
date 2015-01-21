@@ -9,7 +9,6 @@ Changelog:
 	- Rewrote a part of the entropy extractor.
 	- Implemented byte output to file.
 	- Added a new stage to the entropy extractor.
-	
 
 0.16:
 	- Implement ray-tracing.
