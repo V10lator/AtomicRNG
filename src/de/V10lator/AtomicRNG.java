@@ -92,7 +92,6 @@ public class AtomicRNG {
     }
     
     private static BaseHash hash;
-    private static int co = 0;
     static void toOSrng(int number) {
         /*
          * If this is the first number we got use it as seed for the internal RNG and exit.
@@ -125,12 +124,10 @@ public class AtomicRNG {
             }
             addZeroesToHash();
             hash.update(b);
-            co++;
         }
         
         if(rand.nextInt(100) > 10)
             return;
-        co = 0;
         byte[] bytes = hash.digest();
         hash.reset();
         hash = null;
