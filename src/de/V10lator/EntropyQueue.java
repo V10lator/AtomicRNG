@@ -99,15 +99,19 @@ class EntropyQueue extends Thread {
                 continue;
             }
             long entropyBitsAvail = (window.getInt(0) & 0xffffffffL);
+            window.clear(4L);
             long entropyAvail = entropyBitsAvail >> 3;
             if(entropyBitsAvail % 8 != 0)
                 entropyAvail++;
-            window.clear(4L);
             int free = (int) (maxEntropy - entropyAvail);
             if(free > 0) {
+                Pointer p;
                 Iterator<Pointer> iter = queue.iterator();
                 while(iter.hasNext()) {
-                    if(free-- == 0 || !toOSrng(iter.next()))
+                    p = iter.next();
+                    if(AtomicRNG.rand.nextBoolean())
+                        continue; // randomly skip some bytes. We won't loose them, in the next round they'll again have a change to get feedet.
+                    if(free-- == 0 || !toOSrng(p))
                         break;
                     iter.remove();
                 }
