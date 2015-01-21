@@ -1,5 +1,16 @@
 Changelog:
 
+0.17:
+	- Bugfixes.
+	- Implemented joined view and made it the default.
+	- New crosses.
+	- Add image output.
+	- Better noise filter.
+	- Rewrote a part of the entropy extractor.
+	- Implemented byte output to file.
+	- Added a new stage to the entropy extractor.
+	
+
 0.16:
 	- Implement ray-tracing.
 	- Enable frame timestamping for better video out.
