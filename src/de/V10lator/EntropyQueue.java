@@ -18,6 +18,7 @@ class EntropyQueue extends Thread {
 
     private static final AtomicBoolean lock = new AtomicBoolean(false);
     private static final ArrayList<Pointer> queue = new ArrayList<Pointer>();
+    private static final long minCapacity = 256; //  4 hashes
     private static final long maxEntropy;
     private static final Pointer window = new Memory(4L);
     private static FileOutputStream osRNG = null;
@@ -82,7 +83,7 @@ class EntropyQueue extends Thread {
                 try {
                     Thread.sleep(2L);
                 } catch (InterruptedException e) {}
-            if(queue.isEmpty()) {
+            if(queue.size() < minCapacity) {
                 lock.set(false);
                 continue;
             }
@@ -104,16 +105,18 @@ class EntropyQueue extends Thread {
             if(entropyBitsAvail % 8 != 0)
                 entropyAvail++;
             int free = (int) (maxEntropy - entropyAvail);
+            int qs = queue.size();
             if(free > 0) {
                 Pointer p;
                 Iterator<Pointer> iter = queue.iterator();
                 while(iter.hasNext()) {
                     p = iter.next();
-                    if(AtomicRNG.rand.nextBoolean())
+                    if(qs < 512 || AtomicRNG.rand.nextBoolean())
                         continue; // randomly skip some bytes. We won't loose them, in the next round they'll again have a change to get feedet.
                     if(free-- == 0 || !toOSrng(p))
                         break;
                     iter.remove();
+                    qs--;
                 }
             }
             lock.set(false);
