@@ -1,6 +1,6 @@
 package de.V10lator;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import com.sun.jna.LastErrorException;
@@ -53,14 +53,11 @@ class LibCwrapper {
         public final int entropy_count;
         public final int buf_size;
         public final byte[] buf;
-        private static final ArrayList<String> fieldOrder;
-        
-        static {
-            fieldOrder = new ArrayList<String>(3);
-            fieldOrder.add("entropy_count");
-            fieldOrder.add("buf_size");
-            fieldOrder.add("buf");
-        }
+        private static final List<String> fieldOrder = Arrays.asList(
+                "entropy_count",
+                "buf_size",
+                "buf"
+                );
         
         Rand_pool_info(byte b) {
             buf = new byte[1];
