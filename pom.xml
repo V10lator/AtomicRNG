@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>de.V10lator</groupId>
   <artifactId>AtomicRNG</artifactId>
-  <version>0.18</version>
+  <version>0.19</version>
   <name>AtomicRNG</name>
   <description>An experimental RNG feeding the Linux RNG with the help of an Alpha-Ray-Visualizer.</description>
   <reporting>
