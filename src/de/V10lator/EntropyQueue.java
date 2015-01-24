@@ -122,9 +122,11 @@ class EntropyQueue extends Thread {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-        if(queue.size() + bytes.length < 2097152L)
-            for(int i = 0; i < bytes.length; i++)
-                queue.add(bytes[i]);
+        for(int i = 0; i < bytes.length; i++) {
+            if(queue.size() >= maxCapacity)
+                break;
+            queue.add(bytes[i]);
+        }
         lock.set(false);
     }
     
