@@ -1,5 +1,8 @@
 Changelog:
 
+0.18:
+	- Bugfixes.
+
 0.17:
 	- Bugfixes.
 	- Implemented joined view and made it the default.
