@@ -17,7 +17,8 @@ class EntropyQueue extends Thread {
 
     private static final AtomicBoolean lock = new AtomicBoolean(false);
     private static final ArrayList<Byte> queue = new ArrayList<Byte>();
-    private static final long minCapacity = 256; //  4 hashes
+    private static final long minCapacity = 256L; // 4 hashes
+    private static final long maxCapacity = 2097152L; // 2 GB TODO: Don't hardcode.
     private static final long maxEntropy;
     private static final Memory window = new Memory(4L);
     private static int fd = -1;
@@ -121,8 +122,9 @@ class EntropyQueue extends Thread {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-        for(int i = 0; i < bytes.length; i++)
-            queue.add(bytes[i]);
+        if(queue.size() + bytes.length < 2097152L)
+            for(int i = 0; i < bytes.length; i++)
+                queue.add(bytes[i]);
         lock.set(false);
     }
     
