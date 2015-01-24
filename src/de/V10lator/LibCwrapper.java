@@ -1,5 +1,6 @@
 package de.V10lator;
 
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 
@@ -59,12 +60,13 @@ class LibCwrapper {
                 "buf"
                 );
         
-        Rand_pool_info(byte b) {
-            buf = new byte[1];
-            buf[0] = b;
-            entropy_count = 8;
-            buf_size = 1;
-            
+        Rand_pool_info(ByteBuffer buffer) {
+            buf_size = buffer.limit();
+            entropy_count = buf_size << 3;
+            buf = new byte[buf_size];
+            for(int i = 0; i < buf_size; i++)
+                buf[i] = buffer.get();
+            buffer.flip();
             setAutoRead(false);
         }
         

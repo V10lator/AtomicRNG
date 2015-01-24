@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -15,7 +16,7 @@ import com.sun.jna.Memory;
 class EntropyQueue extends Thread {
 
     private static final AtomicBoolean lock = new AtomicBoolean(false);
-    private static final ArrayList<LibCwrapper.Rand_pool_info> queue = new ArrayList<LibCwrapper.Rand_pool_info>();
+    private static final ArrayList<Byte> queue = new ArrayList<Byte>();
     private static final long minCapacity = 256; //  4 hashes
     private static final long maxEntropy;
     private static final Memory window = new Memory(4L);
@@ -88,19 +89,28 @@ class EntropyQueue extends Thread {
                 entropyAvail++;
             int free = (int) (maxEntropy - entropyAvail);
             if(free > 0) {
-                LibCwrapper.Rand_pool_info rpi;
-                Iterator<LibCwrapper.Rand_pool_info> iter = queue.iterator();
-                while(iter.hasNext()) {
-                    rpi = iter.next();
-                    if(qs < 512 || AtomicRNG.rand.nextBoolean())
-                        continue; // randomly skip some bytes. We won't loose them, in the next round they'll again have a change to get feedet.
-                    if(free-- == 0 || !toOSrng(rpi))
-                        break;
-                    iter.remove();
-                    qs--;
+                ByteBuffer buffer = ByteBuffer.allocate(free);
+                byte b;
+                Iterator<Byte> iter;
+                while(free > 0 && qs >= minCapacity) {
+                    iter = queue.iterator();
+                    while(iter.hasNext()) {
+                        b = iter.next();
+                        if(AtomicRNG.rand.nextBoolean())
+                            continue;
+                        buffer.put(b);
+                        qs--;
+                        free--;
+                        iter.remove();
+                    }
                 }
+                buffer.flip();
+                if(!toOSrng(new LibCwrapper.Rand_pool_info(buffer))) {
+                    while(buffer.hasRemaining())
+                        queue.add(buffer.get());
+                }
+                lock.set(false);
             }
-            lock.set(false);
         }
     }
     
@@ -111,11 +121,8 @@ class EntropyQueue extends Thread {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-        LibCwrapper.Rand_pool_info rpi;
-        for(int i = 0; i < bytes.length; i++) {
-            rpi = new LibCwrapper.Rand_pool_info(bytes[i]);
-            queue.add(rpi);
-        }
+        for(int i = 0; i < bytes.length; i++)
+            queue.add(bytes[i]);
         lock.set(false);
     }
     
@@ -125,7 +132,8 @@ class EntropyQueue extends Thread {
             LibCwrapper.ioctl(fd, LibCwrapper.RNDADDENTROPY, rpi);
             if(f != null)
                 try {
-                    f.write(rpi.buf[0]);
+                    for(int i = 0; i < rpi.buf_size; i++)
+                        f.write(rpi.buf[i]);
                     f.flush();
                 } catch (IOException e) {
                     e.printStackTrace();
