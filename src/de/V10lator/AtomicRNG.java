@@ -373,7 +373,8 @@ public class AtomicRNG {
             case "-h":
                 System.out.println("Arguments:"+System.lineSeparator()+
                         " -q  : Be quiet."+System.lineSeparator()+
-                        " -f  : File output."+System.lineSeparator()+
+                        " -f  : Enable file output."+System.lineSeparator()+
+                        " -d  : Enable double view."+System.lineSeparator()+
                         //                            " -ef : Enable experimental filter."+System.lineSeparator()+
                         " -v  : Enable video recorder."+System.lineSeparator()+
                         " -h  : Show this help."+System.lineSeparator());
