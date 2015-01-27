@@ -492,8 +492,7 @@ public class AtomicRNG {
         /*
          * A few Variables we'll need inside of the main loop.
          */
-        int fpsCount = 0;
-        float avgFPS = 0.0f;
+        int fpsCount = 0, avgFPS = 0;
         Color yellow = new Color(1.0f, 1.0f, 0.0f, 0.1f);
         BufferedImage statImg = null;
         Font font = new Font("Arial Black", Font.PLAIN, 18);
@@ -532,7 +531,9 @@ public class AtomicRNG {
                      * ...update the windows title with the newest statistics...
                      */
                     if(!quiet) {
-                        avgFPS = (float)fpsCount/4.0f;
+                        avgFPS = fpsCount >> 2;
+                        if(((float)fpsCount/4.0f) % 2 != 0)
+                            avgFPS++;
                         String es = EntropyQueue.getStats();
                         for(int i = 0; i < stat.length; i++)
                             statOut[i] = stat[i].
