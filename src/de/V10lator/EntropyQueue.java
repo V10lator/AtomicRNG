@@ -7,6 +7,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -169,5 +170,21 @@ class EntropyQueue extends Thread {
         if(fd != -1)
             LibCwrapper.close(fd);
         lock.set(false);
+    }
+    
+    static String getStats() {
+        HashSet<Byte> set = new HashSet<Byte>();
+        while(!lock.compareAndSet(false, true))
+            try {
+                Thread.sleep(1L);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        for(Byte b: queue)
+            if(!set.contains(b))
+                set.add(b);
+        String ret = set.size()+"//"+queue.size();
+        lock.set(false);
+        return ret;
     }
 }
