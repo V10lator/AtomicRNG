@@ -525,20 +525,20 @@ public class AtomicRNG {
                     fpsCount++;
 
                 /*
-                 * After each ten seconds...
+                 * After each 4 seconds...
                  */
-                if(start - lastSlice >= 10000L) {
+                if(start - lastSlice >= 4000L) {
                     /*
                      * ...update the windows title with the newest statistics...
                      */
                     if(!quiet) {
-                        avgFPS = (float)fpsCount/10.0f;
+                        avgFPS = (float)fpsCount/4.0f;
                         String es = EntropyQueue.getStats();
                         for(int i = 0; i < stat.length; i++)
                             statOut[i] = stat[i].
                                     replaceAll("%1", String.valueOf(avgFPS)).
-                                    replaceAll("%2", String.valueOf((float)(byteCount >> 7)/10.0f)).
-                                    replaceAll("%3", String.valueOf((float)hashCount/10.0f)).
+                                    replaceAll("%2", String.valueOf((float)(byteCount >> 7)/4.0f)).
+                                    replaceAll("%3", String.valueOf((float)hashCount/4.0f)).
                                     replaceAll("%4", es);
                         byteCount = hashCount = fpsCount = 0;
                     }
