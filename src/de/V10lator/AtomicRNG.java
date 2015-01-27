@@ -467,11 +467,18 @@ public class AtomicRNG {
         /*
          * In case we should draw the window initialize it and set its title.
          */
-        String title = null;
+        String[] stat = null, statOut = null;
         CanvasFrame canvasFrame = null;
         if(!quiet) {
-            title = "AtomicRNG v"+version+" | FPS: %1 | %2 kb/s (%3 hashes/sec)";
-            canvasFrame = new CanvasFrame(title.replaceAll("%.", "N/A"));
+            canvasFrame = new CanvasFrame("AtomicRNG v"+version);
+            stat = new String[3];
+            stat[0] = "FPS: %1";
+            stat[1] = "%2 kb/s (%3 hashes/sec)";
+            stat[2] = "Queue: %4";
+            statOut = new String[3];
+            statOut[0] = "FPS: N/A";
+            statOut[1] = "N/A kb/s (N/A hashes/sec)";
+            statOut[2] = "Queue: N/A";
             canvasFrame.setDefaultCloseOperation(CanvasFrame.EXIT_ON_CLOSE);
             canvasFrame.getCanvas().addMouseListener(new AtomicMouseListener());
         }
@@ -526,7 +533,13 @@ public class AtomicRNG {
                      */
                     if(!quiet) {
                         avgFPS = (float)fpsCount/10.0f;
-                        canvasFrame.setTitle(title.replaceAll("%1", String.valueOf(avgFPS)).replaceAll("%2", String.valueOf((float)(byteCount >> 7)/10.0f)).replaceAll("%3", String.valueOf((float)hashCount/10.0f)));
+                        String es = EntropyQueue.getStats();
+                        for(int i = 0; i < stat.length; i++)
+                            statOut[i] = stat[i].
+                                    replaceAll("%1", String.valueOf(avgFPS)).
+                                    replaceAll("%2", String.valueOf((float)(byteCount >> 7)/10.0f)).
+                                    replaceAll("%3", String.valueOf((float)hashCount/10.0f)).
+                                    replaceAll("%4", es);
                         byteCount = hashCount = fpsCount = 0;
                     }
                     /*
@@ -579,6 +592,8 @@ public class AtomicRNG {
                         graphics.setColor(Color.BLACK);
                         graphics.fillRect(statXoffset, 0, statXoffset + width, height);
                     }
+                    
+                   
                 }
 
                 /*
@@ -642,12 +657,17 @@ public class AtomicRNG {
                  * Write the yellow, transparent text onto the window and update it.
                  */
                 if(!quiet) {
+                    graphics.setColor(yellow);
                     if(doubleView) {
-                        graphics.setColor(yellow);
                         graphics.setFont(font);
                         graphics.drawString("Raw", width / 2 - 25, 25);
                         graphics.drawString("Filtered", statXoffset + (width / 2 - 50), 25);
                     }
+                    
+                    graphics.setFont(smallFont);
+                    int ty = 1;
+                    for(String st: statOut)
+                        graphics.drawString(st, 5, ty++ * 10);
 
                     graphics.setColor(Color.RED);
                     getLock(false);

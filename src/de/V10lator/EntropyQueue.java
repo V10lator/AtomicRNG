@@ -183,7 +183,7 @@ class EntropyQueue extends Thread {
         for(Byte b: queue)
             if(!set.contains(b))
                 set.add(b);
-        String ret = set.size()+"//"+queue.size();
+        String ret = set.size()+"/"+queue.size();
         lock.set(false);
         return ret;
     }
